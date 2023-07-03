@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>Woogic</title>
+  <link rel="stylesheet" href="./style.css">
+  <link rel="shortcut icon" href="./assets/slugcats/survivor.png">
+</head>
+
+<body>
+  <div id="cover" style="opacity: 0%;"></div>
+  <img src="./assets/playmat.png" id="playmat">
+
+  <div id="targetinfo" style="opacity: 0%;"></div>
+  <div id="stack"></div>
+  <div id="field"></div>
+  <div class="horizontalbar" style="top: 15%;"></div>
+  <div class="horizontalbar" style="bottom: 15%;"></div>
+
+  <div id="p0buttons">
+    <button id="endturn0" class="endturn dangerous tt">>><span class="tx">End Turn</span></button>
+    <button id="pass0" class="pass cool">Pass</button>
+    <button id="endphase0" class="endphase dangerous tt">><span class="tx">Advance Phase</span></button>
+  </div>
+  <div id="p1buttons">
+    <button id="endturn1" class="endturn dangerous tt">>><span class="tx">End Turn</span></button>
+    <button id="pass1" class="pass dangerous">Pass</button>
+    <button id="endphase1" class="endphase dangerous tt">><span class="tx">Advance Phase</span></button>
+  </div>
+  <button id="confirm" class="cool" style="display: none;">Confirm</button>
+
+  <script type="module" src="./scripts/ability.js"></script>
+  <script type="module" src="./scripts/card.js"></script>
+  <script type="module" src="./scripts/cost.js"></script>
+  <script type="module" src="./scripts/effect.js"></script>
+  <script type="module" src="./scripts/globals.js"></script>
+  <script type="module" src="./scripts/hook.js"></script>
+  <script type="module" src="./scripts/library.js"></script>
+  <script type="module" src="./scripts/mana.js"></script>
+  <script type="module" src="./scripts/permanent.js"></script>
+  <script type="module" src="./scripts/player.js"></script>
+  <script type="module" src="./scripts/stack.js"></script>
+  <script type="module" src="./scripts/test.js"></script>
+  <script type="module" src="./scripts/zone.js"></script>
+
+  <script type="module">
+    import { StartGame } from "./scripts/main.js";
+    import { UI } from "./scripts/ui.js";
+
+    let getId = x => document.getElementById(x);
+    getId("confirm").onclick = () => UI.submitSelection();
+    getId("pass0").onclick = () => UI.passPriority(0);
+    getId("pass1").onclick = () => UI.passPriority(1);
+    getId("endphase0").onclick = () => UI.endPhase(0);
+    getId("endphase1").onclick = () => UI.endPhase(1);
+    getId("endturn0").onclick = () => UI.endTurn(0);
+    getId("endturn1").onclick = () => UI.endTurn(1);
+
+    StartGame();
+  </script>
+</body>
+
+</html>
