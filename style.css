@@ -42,9 +42,9 @@ html {
   color: #aaa;
 }
 
-.card.tapped::after {
+/*.card.tapped::after {
   content: " (tapped)";
-}
+}*/
 
 .card.tt>.tx::first-line {
   line-height: 25px;
@@ -119,7 +119,7 @@ button.pushed {
 }
 
 .selected {
-  background: linear-gradient(red, orange, yellow, green, blue, purple) !important;
+  background: linear-gradient(red, orange, yellow, green, blue, purple);
 }
 
 #targetinfo {
@@ -164,4 +164,10 @@ hline {
   width: 15px;
   height: 15px;
   transform: translate(-1px, 3px);
+}
+
+.playerinfo {
+  position: absolute;
+  text-align: right;
+  right: 10px;
 }

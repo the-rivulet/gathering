@@ -39,6 +39,7 @@ export class Player {
     deck = [];
     zones = new ZoneManager();
     landPlays = 1;
+    startingLifeTotal = 20;
     lifeTotal = 20;
     timesTempted = 0;
     ringBearer;
@@ -46,14 +47,14 @@ export class Player {
     passedPriority = false;
     endedPhase = false;
     endedTurn = false;
-    constructor(name, deck, life) {
+    constructor(name, deck, life = 20) {
         this.name = name;
         this.deck = deck;
         for (let i of deck) {
             this.createNewCard(i, Zone.library);
         }
-        if (life)
-            this.lifeTotal = life;
+        this.startingLifeTotal = life;
+        this.lifeTotal = life;
     }
     createNewCard(c, zone = Zone.limbo, clone = false) {
         let card = clone ? c.makeEquivalentCopy() : c;
@@ -114,10 +115,10 @@ export class Player {
     async castSpell(card, forceTargets, free = false, auto = false) {
         if (!card.castable(this, auto, free))
             return false;
-        if (!card.possible(Battlefield))
+        if (!card.possible(card, Battlefield))
             return false;
         let doIt = (targets) => {
-            if (!card.validate(targets)) {
+            if (!card.validate(card, targets)) {
                 this.moveCardTo(card, Zone.graveyard);
                 return false;
             }
@@ -132,15 +133,15 @@ export class Player {
         if (forceTargets)
             return doIt(forceTargets);
         else {
-            this.selectTargets(card, card.validate, () => card.possible(Battlefield), "Select the spell's targets", doIt);
+            this.selectTargets(card, t => card.validate(card, t), () => card.possible(card, Battlefield), "Select the spell's targets", doIt);
             return true;
         }
     }
     async castAura(card, forceTarget, free = false, auto = false) {
-        if (!card.castable(this, auto, free) || !card.possible(Battlefield))
+        if (!card.castable(this, auto, free) || !card.possible(card, Battlefield))
             return false;
         let doIt = (targets) => {
-            if (!card.validate(targets[0])) {
+            if (!card.validate(card, targets[0])) {
                 this.moveCardTo(card, Zone.graveyard);
                 return false;
             }
@@ -154,7 +155,7 @@ export class Player {
         if (forceTarget)
             return doIt([forceTarget]);
         else {
-            this.selectTargets(card, t => t.length == 1 && card.validate(t[0]), () => card.possible(Battlefield), "Select the aura's targets", doIt);
+            this.selectTargets(card, t => t.length == 1 && card.validate(card, t[0]), () => card.possible(card, Battlefield), "Select the aura's targets", doIt);
             return true;
         }
     }
@@ -182,7 +183,7 @@ export class Player {
     }
     resolve(card, targets = []) {
         if (card instanceof AuraCard) {
-            if (targets.length == 1 && card.validate(targets[0])) {
+            if (targets.length == 1 && card.validate(card, targets[0])) {
                 card.attached = targets[0];
                 this.moveCardTo(card, Zone.battlefield);
             }
@@ -198,35 +199,43 @@ export class Player {
             this.moveCardTo(card, Zone.graveyard);
         }
     }
-    markAsAttacker(card) {
+    markAsAttacker(card, real = true) {
         if (card.controller != this || TurnManager.step != Step.declare_attackers || TurnManager.currentPlayer != this || card.attacking)
             return false;
         if (!new TapCost().pay(card, false))
             return false;
-        card.attacking = true;
+        if (real)
+            card.attacking = true;
         return true;
     }
-    unmarkAsAttacker(card) {
+    unmarkAsAttacker(card, real = true) {
         if (card.controller != this || TurnManager.step != Step.declare_attackers || TurnManager.currentPlayer != this || !card.attacking)
             return false;
-        card.attacking = false;
+        if (real)
+            card.attacking = false;
         return true;
     }
     get attackers() {
         return Battlefield.filter(x => x instanceof Creature && x.attacking && x.controller == this);
     }
     markAsBlocker(card, blocking) {
-        if (blocking.controller == this || card.controller != this || TurnManager.step != Step.declare_blockers || TurnManager.defendingPlayer != this || !blocking.attacking || card.tapped)
+        if (blocking && (blocking.controller == this || !blocking.attacking))
+            return false;
+        if (card.controller != this || TurnManager.step != Step.declare_blockers || TurnManager.defendingPlayer != this || card.tapped)
             return false;
         if (card.blocking.length)
-            return false;
-        card.blocking.push(blocking);
+            return false; // TODO: make this its own function and add a hook
+        if (blocking)
+            card.blocking.push(blocking);
         return true;
     }
     unmarkAsBlocker(card, blocking) {
-        if (blocking.controller == this || card.controller != this || TurnManager.step != Step.declare_blockers || TurnManager.defendingPlayer != this || !card.blocking.includes(blocking))
+        if (card.controller != this || TurnManager.step != Step.declare_blockers || TurnManager.defendingPlayer != this)
             return false;
-        card.blocking.splice(card.blocking.indexOf(blocking), 1);
+        if (!blocking && (blocking.controller == this || !card.blocking.includes(blocking)))
+            return false;
+        if (blocking)
+            card.blocking.splice(card.blocking.indexOf(blocking), 1);
         return true;
     }
     takeDamage(source, amount, combat = false) {

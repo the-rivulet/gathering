@@ -23,12 +23,12 @@ export class SelectionData {
     this.continuation = continuation;
   }
   possible(field: Permanent[]): boolean {
-    return ApplyHooks(x => x instanceof HasValidTargetsHook, function(that: SelectionData, field: Permanent[]) {
+    return ApplyHooks(x => x instanceof HasValidTargetsHook, function (that: SelectionData, field: Permanent[]) {
       return that.basePossible(field);
     }, this, field);
   }
   validate(t: any[]): boolean {
-    return ApplyHooks(x => x instanceof CheckTargetsHook, function(that: SelectionData, t: any[]) {
+    return ApplyHooks(x => x instanceof CheckTargetsHook, function (that: SelectionData, t: any[]) {
       return that.baseValidate(t);
     }, this, t);
   }
@@ -41,6 +41,7 @@ export class Player {
   deck: Card[] = [];
   zones = new ZoneManager();
   landPlays = 1;
+  startingLifeTotal = 20;
   lifeTotal = 20;
   timesTempted = 0;
   ringBearer: Creature;
@@ -48,13 +49,14 @@ export class Player {
   passedPriority = false;
   endedPhase = false;
   endedTurn = false;
-  constructor(name: string, deck: Card[], life?: number) {
+  constructor(name: string, deck: Card[], life = 20) {
     this.name = name;
     this.deck = deck;
     for (let i of deck) {
       this.createNewCard(i, Zone.library);
     }
-    if (life) this.lifeTotal = life;
+    this.startingLifeTotal = life;
+    this.lifeTotal = life;
   }
   createNewCard(c: Card, zone = Zone.limbo, clone = false) {
     let card = clone ? c.makeEquivalentCopy() : c;
@@ -85,7 +87,7 @@ export class Player {
     return true;
   }
   selectTargets(card: Card = undefined, validate: (t: any[]) => boolean, possible: () => boolean, message: string, continuation: (result: any) => any) {
-    if(!possible()) return;
+    if (!possible()) return;
     this.selectionData = new SelectionData(card, validate, possible, message, continuation);
     UI.selectTargets(this);
   }
@@ -106,9 +108,9 @@ export class Player {
   }
   async castSpell(card: SpellCard, forceTargets?: any[], free = false, auto = false) {
     if (!card.castable(this, auto, free)) return false;
-    if(!card.possible(Battlefield)) return false;
+    if (!card.possible(card, Battlefield)) return false;
     let doIt = (targets: any[]) => {
-      if (!card.validate(targets)) {
+      if (!card.validate(card, targets)) {
         this.moveCardTo(card, Zone.graveyard);
         return false;
       }
@@ -123,8 +125,8 @@ export class Player {
     else {
       this.selectTargets(
         card,
-        card.validate,
-        () => card.possible(Battlefield),
+        t => card.validate(card, t),
+        () => card.possible(card, Battlefield),
         "Select the spell's targets",
         doIt
       );
@@ -132,10 +134,10 @@ export class Player {
     }
   }
   async castAura(card: AuraCard, forceTarget?: Permanent | Player, free = false, auto = false) {
-    if (!card.castable(this, auto, free) || !card.possible(Battlefield))
-        return false;
+    if (!card.castable(this, auto, free) || !card.possible(card, Battlefield))
+      return false;
     let doIt = (targets: any[]) => {
-      if (!card.validate(targets[0])) {
+      if (!card.validate(card, targets[0])) {
         this.moveCardTo(card, Zone.graveyard);
         return false;
       }
@@ -149,8 +151,8 @@ export class Player {
     else {
       this.selectTargets(
         card,
-        t => t.length == 1 && card.validate(t[0]),
-        () => card.possible(Battlefield),
+        t => t.length == 1 && card.validate(card, t[0]),
+        () => card.possible(card, Battlefield),
         "Select the aura's targets",
         doIt
       );
@@ -180,7 +182,7 @@ export class Player {
   }
   resolve(card: Card, targets: any[] = []) {
     if (card instanceof AuraCard) {
-      if (targets.length == 1 && card.validate(targets[0])) {
+      if (targets.length == 1 && card.validate(card, targets[0])) {
         card.attached = targets[0]; this.moveCardTo(card, Zone.battlefield);
       } else {
         this.moveCardTo(card, Zone.graveyard); // fizzle
@@ -189,30 +191,31 @@ export class Player {
     else if (card instanceof PermanentCard) { this.moveCardTo(card, Zone.battlefield); }
     else if (card instanceof SpellCard) { card.resolve(card, targets); this.moveCardTo(card, Zone.graveyard); }
   }
-  markAsAttacker(card: Creature) {
+  markAsAttacker(card: Creature, real = true) {
     if (card.controller != this || TurnManager.step != Step.declare_attackers || TurnManager.currentPlayer != this || card.attacking) return false;
     if (!new TapCost().pay(card, false)) return false;
-    card.attacking = true;
+    if (real) card.attacking = true;
     return true;
   }
-  unmarkAsAttacker(card: Creature) {
+  unmarkAsAttacker(card: Creature, real = true) {
     if (card.controller != this || TurnManager.step != Step.declare_attackers || TurnManager.currentPlayer != this || !card.attacking) return false;
-    card.attacking = false;
+    if (real) card.attacking = false;
     return true;
   }
   get attackers() {
     return (Battlefield.filter(x => x instanceof Creature && x.attacking && x.controller == this) as Creature[]);
   }
-  markAsBlocker(card: Creature, blocking: Creature) {
-    if (blocking.controller == this || card.controller != this || TurnManager.step != Step.declare_blockers || TurnManager.defendingPlayer != this || !blocking.attacking || card.tapped) return false;
-    if (card.blocking.length) return false;
-
-    card.blocking.push(blocking);
+  markAsBlocker(card: Creature, blocking?: Creature) {
+    if (blocking && (blocking.controller == this || !blocking.attacking)) return false;
+    if (card.controller != this || TurnManager.step != Step.declare_blockers || TurnManager.defendingPlayer != this || card.tapped) return false;
+    if (card.blocking.length) return false; // TODO: make this its own function and add a hook
+    if (blocking) card.blocking.push(blocking);
     return true;
   }
-  unmarkAsBlocker(card: Creature, blocking: Creature) {
-    if (blocking.controller == this || card.controller != this || TurnManager.step != Step.declare_blockers || TurnManager.defendingPlayer != this || !card.blocking.includes(blocking)) return false;
-    card.blocking.splice(card.blocking.indexOf(blocking), 1);
+  unmarkAsBlocker(card: Creature, blocking?: Creature) {
+    if (card.controller != this || TurnManager.step != Step.declare_blockers || TurnManager.defendingPlayer != this) return false;
+    if (!blocking && (blocking.controller == this || !card.blocking.includes(blocking))) return false;
+    if (blocking) card.blocking.splice(card.blocking.indexOf(blocking), 1);
     return true;
   }
   takeDamage(source: Card | Permanent, amount: number | (() => number), combat = false) {

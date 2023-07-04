@@ -1,6 +1,5 @@
 import { StackActivation } from "./stack.js";
 import { StackManager } from "./globals.js";
-//import { UI } from "./ui.js";
 export class Ability {
 }
 export class ComputedAbility extends Ability {

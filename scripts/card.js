@@ -92,15 +92,15 @@ export class SpellCard extends Card {
         this.baseValidate = validate;
         this.basePossible = possible;
     }
-    possible(field) {
+    possible(self, field) {
         return ApplyHooks(x => x instanceof HasValidTargetsHook, function (that, field) {
             return that.basePossible(that, field);
-        }, this, field);
+        }, self, field);
     }
-    validate(targets) {
+    validate(self, targets) {
         return ApplyHooks(x => x instanceof CheckTargetsHook, function (that, targets) {
             return that.baseValidate(targets);
-        }, this, targets);
+        }, self, targets);
     }
     makeEquivalentCopy;
 }
@@ -121,16 +121,16 @@ export class AuraCard extends PermanentCard {
         this.baseValidate = validate;
     }
     basePossible(field) {
-        return [...field, ...TurnManager.playerList].filter(x => this.validate(x)).length > 0;
+        return [...field, ...TurnManager.playerList].filter(x => this.validate(this, x)).length > 0;
     }
-    possible(field) {
+    possible(self, field) {
         return ApplyHooks(x => x instanceof HasValidTargetsHook, function (that, field) {
             return that.basePossible(field);
-        }, this, field);
+        }, self, field);
     }
-    validate(attached) {
+    validate(self, attached) {
         return ApplyHooks(x => x instanceof CheckTargetsHook, function (that, targets) {
             return that.baseValidate(targets[0]);
-        }, this, [attached]);
+        }, self, [attached]);
     }
 }

@@ -2,7 +2,7 @@ import type { Card } from "./card.js";
 import type { Permanent } from "./permanent.js";
 import type { Effect } from "./effect.js";
 import type { ActivatedAbility } from "./ability.js";
-import { TurnManager } from "./globals.js";
+import { TurnManager, Settings } from "./globals.js";
 
 export class StackCard {
   card: Card;
@@ -62,7 +62,7 @@ export class StackManagerClass {
   get ready() {
     return !TurnManager.playerList.filter(x => (!x.endedTurn && !x.endedPhase && !x.passedPriority) || x.selectionData).length;
   }
-  resolveIfReady() {
+  resolveIfReady(counter = 0) {
     if(!this.ready) return;
     this.resolveNext();
     for(let i of TurnManager.playerList) {
@@ -70,6 +70,6 @@ export class StackManagerClass {
         i.passedPriority = false;
       }
     }
-    if(this.stack.length) setTimeout(this.resolveIfReady, 200);
+    if(this.stack.length && counter < Settings.maxRepeats) this.resolveIfReady();
   }
 }

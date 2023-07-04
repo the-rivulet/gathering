@@ -72,11 +72,10 @@ export class TurnManagerClass {
                         that.defendingPlayer = that.playerList.filter(x => x != that.currentPlayer)[0];
                 }
                 for (let i of that.currentPlayer.attackers) {
-                    new TapCost().pay(i, true);
+                    new TapCost(true).pay(i, true);
                 }
             }
             else if (that.step == Step.deal_damage) {
-                //TriggerEffects(Events.beforeDamageDealt, { player: this.currentPlayer });
                 for (let i of that.currentPlayer.attackers) {
                     let bs = i.blockedBy;
                     if (bs.length) {
@@ -114,6 +113,11 @@ export class TurnManagerClass {
                         // Unblocked. Deal damage.
                         that.defendingPlayer.takeDamage(i, i.power, true);
                     }
+                    i.attacking = false; // Remove "attacker" status now that it is no longer needed
+                }
+                // Remove "blocker" status now that it is no longer needed
+                for (let b of Battlefield.filter(x => x instanceof Creature)) {
+                    b.blocking = [];
                 }
             }
             else if (that.step == Step.draw) {
@@ -191,6 +195,6 @@ export class TurnManagerClass {
                 i.passedPriority = false;
             }
         }
-        setTimeout(that.advanceIfReady, 20);
+        that.advanceIfReady();
     }
 }

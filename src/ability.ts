@@ -3,7 +3,6 @@ import type { Cost } from "./cost.js";
 import type { Effect } from "./effect.js";
 import { StackActivation } from "./stack.js";
 import { StackManager } from "./globals.js";
-//import { UI } from "./ui.js";
 
 export abstract class Ability {
   // Merely a common parent for the ability types, so I can type 'Ability' and have it work for them all.

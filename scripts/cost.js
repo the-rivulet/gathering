@@ -33,11 +33,13 @@ class ComplexCost extends Cost {
     }
 }
 export class TapCost extends Cost {
-    constructor() {
+    ignoreAttacking;
+    constructor(ignoreAttacking = false) {
         super();
+        this.ignoreAttacking = ignoreAttacking;
     }
     pay(card, spend = true) {
-        if (card.tapped || (card instanceof Creature && card.summoningSickness))
+        if (card.tapped || (card instanceof Creature && (card.summoningSickness || (!this.ignoreAttacking && card.attacking))))
             return false;
         if (spend) {
             card.tapped = true;

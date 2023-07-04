@@ -1,4 +1,4 @@
-import { TurnManager } from "./globals.js";
+import { TurnManager, Settings } from "./globals.js";
 export class StackCard {
     card;
     targets;
@@ -49,7 +49,7 @@ export class StackManagerClass {
     get ready() {
         return !TurnManager.playerList.filter(x => (!x.endedTurn && !x.endedPhase && !x.passedPriority) || x.selectionData).length;
     }
-    resolveIfReady() {
+    resolveIfReady(counter = 0) {
         if (!this.ready)
             return;
         this.resolveNext();
@@ -58,7 +58,7 @@ export class StackManagerClass {
                 i.passedPriority = false;
             }
         }
-        if (this.stack.length)
-            setTimeout(this.resolveIfReady, 200);
+        if (this.stack.length && counter < Settings.maxRepeats)
+            this.resolveIfReady();
     }
 }

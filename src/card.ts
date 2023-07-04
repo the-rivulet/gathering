@@ -108,15 +108,15 @@ export class SpellCard extends Card {
     this.baseValidate = validate;
     this.basePossible = possible;
   }
-  possible(field: Permanent[]): boolean {
+  possible(self: SpellCard, field: Permanent[]): boolean {
     return ApplyHooks(x => x instanceof HasValidTargetsHook, function(that: SpellCard, field: Permanent[]) {
       return that.basePossible(that, field);
-    }, this, field);
+    }, self, field);
   }
-  validate(targets: any[]): boolean {
+  validate(self: SpellCard, targets: any[]): boolean {
     return ApplyHooks(x => x instanceof CheckTargetsHook, function(that: SpellCard, targets: any[]) {
       return that.baseValidate(targets);
-    }, this, targets);
+    }, self, targets);
   }
   makeEquivalentCopy: () => SpellCard;
 }
@@ -124,6 +124,7 @@ export class SpellCard extends Card {
 export class CreatureCard extends PermanentCard {
   power: number | ((x: Creature) => number) = 1;
   toughness: number | ((x: Creature) => number) = 1;
+  declare representedPermanent?: Creature;
   constructor(
     name: string,
     types: string[],
@@ -154,17 +155,17 @@ export class AuraCard extends PermanentCard {
     this.baseValidate = validate;
   }
   basePossible(field: Permanent[]) {
-    return [...field, ...TurnManager.playerList].filter(x => this.validate(x)).length > 0;
+    return [...field, ...TurnManager.playerList].filter(x => this.validate(this, x)).length > 0;
   }
-  possible(field: Permanent[]): boolean {
+  possible(self: AuraCard, field: Permanent[]): boolean {
     return ApplyHooks(x => x instanceof HasValidTargetsHook, function(that: AuraCard, field: Permanent[]) {
       return that.basePossible(field);
-    }, this, field);
+    }, self, field);
   }
-  validate(attached: Permanent | Player): boolean {
+  validate(self: AuraCard, attached: Permanent | Player): boolean {
     return ApplyHooks(x => x instanceof CheckTargetsHook, function(that: AuraCard, targets: Permanent[] | Player[]) {
       return that.baseValidate(targets[0]);
-    }, this, [attached]);
+    }, self, [attached]);
   }
   declare makeEquivalentCopy: () => AuraCard;
 }
