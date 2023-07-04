@@ -50,12 +50,13 @@ function renderRow(cards, offset) {
                     x == "red" ? "firebrick" :
                         x == "green" ? "lime" : "white"));
         let bg = bgc.length == 1 ? bgc[0] : bgc.length ? "linear-gradient(" + bgc.join(", ") + ")" : "white";
+        tt.style.background = bg;
         let selected = card instanceof PermanentCard && selection.filter(x => x instanceof PermanentSelection && card instanceof PermanentCard && x.item == card.representedPermanent).length;
         if (selected) {
-            tt.style.removeProperty("background");
+            tt.classList.add("selected");
         }
         else {
-            tt.style.background = bg;
+            tt.classList.remove("selected");
         }
         let tx = document.createElement("span");
         tx.innerHTML = `

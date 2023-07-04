@@ -118,10 +118,6 @@ button.pushed {
   color: gray;
 }
 
-.selected {
-  background: linear-gradient(red, orange, yellow, green, blue, purple);
-}
-
 #targetinfo {
   text-align: center;
   width: 100%;
@@ -170,4 +166,13 @@ hline {
   position: absolute;
   text-align: right;
   right: 10px;
+}
+
+.selected {
+  animation: selected 0.6s alternate-reverse infinite;
+}
+
+@keyframes selected {
+  0% {background: red;}
+  100% {background: yellow;}
 }
