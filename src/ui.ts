@@ -1,35 +1,35 @@
-import type { AuraCard, Card, PermanentCard, SpellCard } from "./card.js";
 import type { Player } from "./player.js";
 import type { Creature, Permanent } from "./permanent.js";
 import type { ActivatedAbility } from "./ability.js";
+import { Card, AuraCard, PermanentCard, SpellCard, CreatureCard } from "./card.js";
 import { TurnManager, Battlefield, StackManager, Settings } from "./globals.js";
 import { StackCard, StackEffect } from "./stack.js";
 import { Zone } from "./zone.js";
 
 let getId = (x: string) => document.getElementById(x);
 
-let textAsHTML = function(text: string) {
+let textAsHTML = function (text: string) {
   let t = text
-      .replaceAll(new RegExp("{EC[0-9]+}", "g"), ": ")
-      .replaceAll(new RegExp("{E?A[0-9]+}", "g"), "")
-      .replaceAll("{T}", "<img src='./assets/" + (Settings.slugcatMana ? "slugcats/touchright.png" : "tap.svg") + "' class='" + (Settings.slugcatMana ? "slugcat" : "symbol") + "'>")
-      .replaceAll("{Q}", "<img src='./assets/" + (Settings.slugcatMana ? "slugcats/touchleft.png" : "untap.svg") + "' class='" + (Settings.slugcatMana ? "slugcat" : "symbol") + "'>");
-    let colorList = (Settings.slugcatMana ?
-      { "G": "saint", "W": "gourmand", "U": "rivulet", "R": "artificer", "B": "nightcat" } :
-      { "G": "green", "W": "white", "U": "blue", "R": "red", "B": "black" }
-    );
-    for (let i of Object.keys(colorList)) {
-      t = t.replaceAll("{" + i + "}", "<img src='./assets/" + (Settings.slugcatMana ? "slugcats" : "mana") + "/" + colorList[i] + ".png' class='" + (Settings.slugcatMana ? "slugcat" : "symbol") + "'>");
-    }
-    for(let i = 0; i <= Settings.highestSymbol; i++) {
-      t = t.replaceAll("{" + i + "}", "<img src='./assets/mana/" + i + ".svg' class='symbol'>");
-    }
-    return t;
+    .replaceAll(new RegExp("{EC[0-9]+}", "g"), ": ")
+    .replaceAll(new RegExp("{E?A[0-9]+}", "g"), "")
+    .replaceAll("{T}", "<img src='./assets/" + (Settings.slugcatMana ? "slugcats/touchright.png" : "tap.svg") + "' class='" + (Settings.slugcatMana ? "slugcat" : "symbol") + "'>")
+    .replaceAll("{Q}", "<img src='./assets/" + (Settings.slugcatMana ? "slugcats/touchleft.png" : "untap.svg") + "' class='" + (Settings.slugcatMana ? "slugcat" : "symbol") + "'>");
+  let colorList = (Settings.slugcatMana ?
+    { "G": "saint", "W": "gourmand", "U": "rivulet", "R": "artificer", "B": "nightcat" } :
+    { "G": "green", "W": "white", "U": "blue", "R": "red", "B": "black" }
+  );
+  for (let i of Object.keys(colorList)) {
+    t = t.replaceAll("{" + i + "}", "<img src='./assets/" + (Settings.slugcatMana ? "slugcats" : "mana") + "/" + colorList[i] + ".png' class='" + (Settings.slugcatMana ? "slugcat" : "symbol") + "'>");
+  }
+  for (let i = 0; i <= Settings.highestSymbol; i++) {
+    t = t.replaceAll("{" + i + "}", "<img src='./assets/mana/" + i + ".svg' class='symbol'>");
+  }
+  return t;
 }
 
 let mousex: number, mousey: number;
-function mouse (e?: any) {
-  if(e) {mousex = e.clientX; mousey = e.clientY;}
+function mouse(e?: any) {
+  if (e) { mousex = e.clientX; mousey = e.clientY; }
   for (let i of document.getElementsByClassName("tx")) {
     let hi = i as HTMLElement;
     hi.style.top = Math.min(20 + mousey, window.innerHeight - hi.clientHeight) + "px";
@@ -60,26 +60,26 @@ function renderRow(cards: Card[], offset: number) {
     tx.innerHTML = `
     ${card.manaCost ? "(" + card.manaCost.asHTML + ") " : ""}${card.name}<br/>
       ${card.supertypes.join(" ")} ${card.majorTypes.join(" ")} - ${card.subtypes.join(" ")}<br/>
-      ${card.textAsHTML}`;
+      ${textAsHTML(card.text.replaceAll("{CARDNAME", card.name))}`;
     if (card.types.includes("Creature") && (card as PermanentCard).representedPermanent as Creature) {
       tx.innerHTML += `<br/>${((card as PermanentCard).representedPermanent as Creature).power}/${((card as PermanentCard).representedPermanent as Creature).toughness}`
     }
     tx.innerHTML += "<hline></hline>";
-    if(card.landPlayable(card.owner)) {
+    if (card.landPlayable(card.owner)) {
       tx.innerHTML += "Click to play this land.";
-    } else if(card.castable(card.owner)) {
-      let asAura = card as AuraCard;
-      let asSpell = card as SpellCard;
-      if(asAura && !asAura.possible(Battlefield)) {
+    } else if (card.castable(card.owner)) {
+      let auraPossible = (card as AuraCard).basePossible;
+      let spellPossible = (card as SpellCard).basePossible;
+      if (auraPossible && !(card as AuraCard).possible(Battlefield)) {
         tx.innerHTML += "This aura has nothing to enchant.";
-      } else if(asSpell && !asSpell.possible(Battlefield)) {
+      } else if (spellPossible && !(card as SpellCard).possible(Battlefield)) {
         tx.innerHTML += "This spell has no valid targets.";
       } else {
         tx.innerHTML += "Click to cast this card for " + card.manaCost.asHTML + ".";
       }
-    } else if(card.castable(card.owner, false, true)) {
+    } else if (card.castable(card.owner, false, true)) {
       tx.innerHTML += "You cannot pay " + card.manaCost.asHTML + " right now (you have " + card.owner.manaPool.asHTML + ").";
-    } else if(card.zone == Zone.hand) {
+    } else if (card.zone == Zone.hand) {
       tx.innerHTML += "This card is not playable right now.";
     }
     tx.classList.add("tx");
@@ -88,9 +88,9 @@ function renderRow(cards: Card[], offset: number) {
       let c = (card as PermanentCard).representedPermanent;
       if (c && c.tapped) tt.classList.add("tapped");
       else tt.classList.remove("tapped");
-      if (c && c.abilities.filter(x => x as ActivatedAbility).length) {
-        let a = c.abilities.filter(x => x as ActivatedAbility)[0] as ActivatedAbility;
-        if(a.getCost(c).pay(c, false)) {
+      if (c && c.abilities.filter(x => (x as ActivatedAbility).baseCost).length) {
+        let a = c.abilities.filter(x => (x as ActivatedAbility).baseCost)[0] as ActivatedAbility;
+        if (a.getCost(c).pay(c, false)) {
           tx.innerHTML += "Click to activate " + (card.hasAbilityMarker(1) ? ' " ' + textAsHTML(card.getAbilityInfo(1)) + ' "' : "this card's ability.");
         } else {
           tx.innerHTML += "You cannot " + (card.hasAbilityMarker(1) ? 'activate " ' + textAsHTML(card.getAbilityInfo(1, "effect")) + ' " because you cannot pay " ' + textAsHTML(card.getAbilityInfo(1, "cost")) + ' "' : "pay this ability's cost") + " right now.";
@@ -100,11 +100,14 @@ function renderRow(cards: Card[], offset: number) {
     // Click to play it or activate it
     tt.onclick = function (e) {
       if (card.zone == "hand") card.owner.play(card);
-      else if (card.zone == "battlefield" && card as PermanentCard) {
+      else if (card.zone == "battlefield") {
+        if (card instanceof CreatureCard) { }
         let c = (card as PermanentCard).representedPermanent;
         if (c && c.abilities.filter(x => x as ActivatedAbility).length) {
           let a = c.abilities.filter(x => x as ActivatedAbility)[0] as ActivatedAbility;
           a.activate(c);
+          renderBattlefield();
+          renderStack();
         }
       }
     }
@@ -254,8 +257,9 @@ function passPriority(ind: number) {
   let player = TurnManager.playerList[ind];
   if (player.selectionData || player.endedTurn) return;
   player.passedPriority = !player.passedPriority;
-  UI.renderBattlefield();
   StackManager.resolveIfReady();
+  renderBattlefield();
+  renderStack();
 }
 
 function endPhase(ind: number) {
@@ -263,9 +267,10 @@ function endPhase(ind: number) {
   if (player.selectionData) return;
   player.endedPhase = !player.endedPhase;
   player.passedPriority = false;
-  UI.renderBattlefield();
   StackManager.resolveIfReady();
   TurnManager.advanceIfReady();
+  renderBattlefield();
+  renderStack();
 }
 
 function endTurn(ind: number) {
@@ -274,9 +279,10 @@ function endTurn(ind: number) {
   player.endedTurn = !player.endedTurn;
   player.endedPhase = false;
   player.passedPriority = false;
-  UI.renderBattlefield();
   StackManager.resolveIfReady();
   TurnManager.advanceIfReady();
+  renderBattlefield();
+  renderStack();
 }
 
 export let UI = {

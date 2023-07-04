@@ -4,7 +4,6 @@ import { Creature } from "./permanent.js";
 import { TapCost } from "./cost.js";
 import { ApplyHooks, BeginStepHook } from "./hook.js";
 import { Mana, ManaFromSymbols } from "./mana.js";
-import { UI } from "./ui.js";
 
 export enum Step {
   untap = 100,
@@ -196,8 +195,6 @@ export class TurnManagerClass {
         i.passedPriority = false;
       }
     }
-    UI.renderBattlefield();
-    UI.renderStack();
     setTimeout(that.advanceIfReady, 20);
   }
 }

@@ -108,6 +108,7 @@ export class Player {
         //TriggerEffects(Events.onCardCast, { player: this, card: card });
         StackManager.add(new StackCard(card));
         this.moveCardTo(card, Zone.stack);
+        UI.renderStack();
         return true;
     }
     async castSpell(card, forceTargets, free = false, auto = false) {
@@ -116,16 +117,18 @@ export class Player {
         if (!card.possible(Battlefield))
             return false;
         let doIt = (targets) => {
-            if (!card.castable(this, auto, free) || !card.validate(targets))
+            if (!card.validate(targets)) {
+                this.moveCardTo(card, Zone.graveyard);
                 return false;
-            if (!free)
-                this.manaPool.pay(card);
+            }
             card.controller = this;
-            //TriggerEffects(Events.onCardCast, { player: this, card: card });
             StackManager.add(new StackCard(card, targets));
-            this.moveCardTo(card, Zone.stack);
+            UI.renderStack();
             return true;
         };
+        if (!free)
+            this.manaPool.pay(card);
+        this.moveCardTo(card, Zone.stack);
         if (forceTargets)
             return doIt(forceTargets);
         else {
@@ -137,13 +140,17 @@ export class Player {
         if (!card.castable(this, auto, free) || !card.possible(Battlefield))
             return false;
         let doIt = (targets) => {
-            if (!card.castable(this, auto, free) || !card.validate(targets[0]))
+            if (!card.validate(targets[0])) {
+                this.moveCardTo(card, Zone.graveyard);
                 return false;
-            if (!free)
-                this.manaPool.pay(card);
+            }
             StackManager.add(new StackCard(card, targets));
+            UI.renderStack();
             return true;
         };
+        if (!free)
+            this.manaPool.pay(card);
+        this.moveCardTo(card, Zone.stack);
         if (forceTarget)
             return doIt([forceTarget]);
         else {

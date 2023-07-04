@@ -3,7 +3,6 @@ import type { Permanent } from "./permanent.js";
 import type { Effect } from "./effect.js";
 import type { ActivatedAbility } from "./ability.js";
 import { TurnManager } from "./globals.js";
-import { UI } from "./ui.js";
 
 export class StackCard {
   card: Card;
@@ -46,7 +45,6 @@ export class StackManagerClass {
   constructor() { }
   add(what: StackCard | StackEffect | StackActivation) {
     this.stack.push(what);
-    UI.renderStack();
   }
   async resolveNext() {
     let next = this.stack.pop();
@@ -60,7 +58,6 @@ export class StackManagerClass {
         i.resolve((next as StackActivation).permanent)
       );
     }
-    UI.renderStack();
   }
   get ready() {
     return !TurnManager.playerList.filter(x => (!x.endedTurn && !x.endedPhase && !x.passedPriority) || x.selectionData).length;
@@ -73,7 +70,6 @@ export class StackManagerClass {
         i.passedPriority = false;
       }
     }
-    UI.renderBattlefield();
     if(this.stack.length) setTimeout(this.resolveIfReady, 200);
   }
 }

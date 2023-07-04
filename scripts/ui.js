@@ -1,3 +1,4 @@
+import { CreatureCard } from "./card.js";
 import { TurnManager, Battlefield, StackManager, Settings } from "./globals.js";
 import { StackCard, StackEffect } from "./stack.js";
 import { Zone } from "./zone.js";
@@ -52,7 +53,7 @@ function renderRow(cards, offset) {
         tx.innerHTML = `
     ${card.manaCost ? "(" + card.manaCost.asHTML + ") " : ""}${card.name}<br/>
       ${card.supertypes.join(" ")} ${card.majorTypes.join(" ")} - ${card.subtypes.join(" ")}<br/>
-      ${card.textAsHTML}`;
+      ${textAsHTML(card.text.replaceAll("{CARDNAME", card.name))}`;
         if (card.types.includes("Creature") && card.representedPermanent) {
             tx.innerHTML += `<br/>${card.representedPermanent.power}/${card.representedPermanent.toughness}`;
         }
@@ -61,12 +62,12 @@ function renderRow(cards, offset) {
             tx.innerHTML += "Click to play this land.";
         }
         else if (card.castable(card.owner)) {
-            let asAura = card;
-            let asSpell = card;
-            if (asAura && !asAura.possible(Battlefield)) {
+            let auraPossible = card.basePossible;
+            let spellPossible = card.basePossible;
+            if (auraPossible && !card.possible(Battlefield)) {
                 tx.innerHTML += "This aura has nothing to enchant.";
             }
-            else if (asSpell && !asSpell.possible(Battlefield)) {
+            else if (spellPossible && !card.possible(Battlefield)) {
                 tx.innerHTML += "This spell has no valid targets.";
             }
             else {
@@ -87,8 +88,8 @@ function renderRow(cards, offset) {
                 tt.classList.add("tapped");
             else
                 tt.classList.remove("tapped");
-            if (c && c.abilities.filter(x => x).length) {
-                let a = c.abilities.filter(x => x)[0];
+            if (c && c.abilities.filter(x => x.baseCost).length) {
+                let a = c.abilities.filter(x => x.baseCost)[0];
                 if (a.getCost(c).pay(c, false)) {
                     tx.innerHTML += "Click to activate " + (card.hasAbilityMarker(1) ? ' " ' + textAsHTML(card.getAbilityInfo(1)) + ' "' : "this card's ability.");
                 }
@@ -101,11 +102,14 @@ function renderRow(cards, offset) {
         tt.onclick = function (e) {
             if (card.zone == "hand")
                 card.owner.play(card);
-            else if (card.zone == "battlefield" && card) {
+            else if (card.zone == "battlefield") {
+                if (card instanceof CreatureCard) { }
                 let c = card.representedPermanent;
                 if (c && c.abilities.filter(x => x).length) {
                     let a = c.abilities.filter(x => x)[0];
                     a.activate(c);
+                    renderBattlefield();
+                    renderStack();
                 }
             }
         };
@@ -258,8 +262,9 @@ function passPriority(ind) {
     if (player.selectionData || player.endedTurn)
         return;
     player.passedPriority = !player.passedPriority;
-    UI.renderBattlefield();
     StackManager.resolveIfReady();
+    renderBattlefield();
+    renderStack();
 }
 function endPhase(ind) {
     let player = TurnManager.playerList[ind];
@@ -267,9 +272,10 @@ function endPhase(ind) {
         return;
     player.endedPhase = !player.endedPhase;
     player.passedPriority = false;
-    UI.renderBattlefield();
     StackManager.resolveIfReady();
     TurnManager.advanceIfReady();
+    renderBattlefield();
+    renderStack();
 }
 function endTurn(ind) {
     let player = TurnManager.playerList[ind];
@@ -278,9 +284,10 @@ function endTurn(ind) {
     player.endedTurn = !player.endedTurn;
     player.endedPhase = false;
     player.passedPriority = false;
-    UI.renderBattlefield();
     StackManager.resolveIfReady();
     TurnManager.advanceIfReady();
+    renderBattlefield();
+    renderStack();
 }
 export let UI = {
     getId: getId,

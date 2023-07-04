@@ -1,6 +1,6 @@
 import { StackActivation } from "./stack.js";
 import { StackManager } from "./globals.js";
-import { UI } from "./ui.js";
+//import { UI } from "./ui.js";
 export class Ability {
 }
 export class ComputedAbility extends Ability {
@@ -31,7 +31,6 @@ export class ActivatedAbility extends Ability {
             return false;
         if (this.manaAbility) {
             this.effect.forEach(i => i.resolve(card)); // If mana ability, no need to stack it
-            UI.renderBattlefield();
         }
         else
             StackManager.add(new StackActivation(this, card));

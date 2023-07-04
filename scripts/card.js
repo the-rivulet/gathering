@@ -1,7 +1,6 @@
 import { Zone } from "./zone.js";
 import { TurnManager } from "./globals.js";
 import { Step } from "./turn.js";
-import { UI } from "./ui.js";
 import { ApplyHooks, HasValidTargetsHook, CheckTargetsHook } from "./hook.js";
 export class Card {
     uuid = Math.random();
@@ -36,9 +35,6 @@ export class Card {
         let end = what == "cost" ? `{EC${a}}` : `{EA${a}}`;
         let t = what == "all" ? this.text.replace(`{EC${a}}`, ": ") : this.text;
         return this.hasAbilityMarker(a) ? t.split(begin)[1].split(end)[0] : "";
-    }
-    get textAsHTML() {
-        return UI.textAsHTML(this.text.replaceAll("{CARDNAME}", this.name));
     }
     get colors() {
         if (!this.manaCost)

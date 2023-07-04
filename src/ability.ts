@@ -3,7 +3,7 @@ import type { Cost } from "./cost.js";
 import type { Effect } from "./effect.js";
 import { StackActivation } from "./stack.js";
 import { StackManager } from "./globals.js";
-import { UI } from "./ui.js";
+//import { UI } from "./ui.js";
 
 export abstract class Ability {
   // Merely a common parent for the ability types, so I can type 'Ability' and have it work for them all.
@@ -38,7 +38,6 @@ export class ActivatedAbility extends Ability {
     if (!this.getCost(card).pay(card, true)) return false;
     if (this.manaAbility) {
       this.effect.forEach(i => i.resolve(card)); // If mana ability, no need to stack it
-      UI.renderBattlefield();
     }
     else StackManager.add(new StackActivation(this, card));
     return true;

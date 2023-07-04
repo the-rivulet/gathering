@@ -1,5 +1,4 @@
 import { TurnManager } from "./globals.js";
-import { UI } from "./ui.js";
 export class StackCard {
     card;
     targets;
@@ -31,7 +30,6 @@ export class StackManagerClass {
     constructor() { }
     add(what) {
         this.stack.push(what);
-        UI.renderStack();
     }
     async resolveNext() {
         let next = this.stack.pop();
@@ -47,7 +45,6 @@ export class StackManagerClass {
         else {
             next.abil.effect.forEach(i => i.resolve(next.permanent));
         }
-        UI.renderStack();
     }
     get ready() {
         return !TurnManager.playerList.filter(x => (!x.endedTurn && !x.endedPhase && !x.passedPriority) || x.selectionData).length;
@@ -61,7 +58,6 @@ export class StackManagerClass {
                 i.passedPriority = false;
             }
         }
-        UI.renderBattlefield();
         if (this.stack.length)
             setTimeout(this.resolveIfReady, 200);
     }
