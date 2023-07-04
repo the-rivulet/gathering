@@ -23,7 +23,7 @@ export class ActivatedAbility extends Ability {
     }
     getCost(me) {
         return this.baseCost;
-        // TODO: Modify costs hook
+        // For hooks.
     }
     activate(card) {
         //if (Battlefield.filter(x => x.abilities.filter(y => y instanceof PreventActivationAbility && y.req(x, card, this)).length).length) return false;
@@ -64,8 +64,6 @@ class TriggeredAbility extends Ability {
     super(new OnAttackTrigger(), new ApplyModifierOnSelfEffect(new StatsModifier(p => p + 1, t => t + 1)));
   }
 }*/
-// Static abilities are a little weird. Each individual one actually extends StaticAbility
-// TODO: Replace with hooks.
 /*abstract class StaticAbility extends Ability {
   // A common parent for static abilities specifically. Does nothing itself.
 }

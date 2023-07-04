@@ -3,7 +3,7 @@ import { ActivatedAbility } from "./ability.js";
 import { AddManaEffect, CreateTokenEffect, AddCounterOnSelfEffect, ApplyAbilityOnSelfEffect } from "./effect.js";
 import { SacrificeSelfCost, TapCost } from "./cost.js";
 import { Mana, ManaCost } from "./mana.js";
-import { PlayCardHook, BeginStepHook, StatsHook } from "./hook.js";
+import { PlayCardHook, BeginStepHook, StatsHook, ProtectionAbility } from "./hook.js";
 import { Creature } from "./permanent.js";
 import { Battlefield } from "./globals.js";
 import { Step } from "./turn.js";
@@ -79,10 +79,7 @@ class FerrousRokiricCard extends CreatureCard {
       3, 1,
       new ManaCost({ red: 1, white: 1, colorless: 1 }),
       [
-        /*new ProtectionAbility(source => 
-              source instanceof Permanent &&
-              source.representedCard.colors.length == 1
-        ),*/
+        new ProtectionAbility(source => source.colors.length == 1),
         new PlayCardHook(orig => (that, card, free, noCheck, force) => {
           if (!(card.types.includes("Land")) && card.colors.length >= 2 && this.representedPermanent) {
             new CreateTokenEffect(new CreatureCard("Golem Token", ["Creature", "Token", "Golem"], "", 4, 4)).resolve(this.representedPermanent);

@@ -31,12 +31,12 @@ export class ActivatedAbility extends Ability {
   }
   getCost(me: Permanent) {
     return this.baseCost;
-    // TODO: Modify costs hook
+    // For hooks.
   }
   activate(card: Permanent) {
     //if (Battlefield.filter(x => x.abilities.filter(y => y instanceof PreventActivationAbility && y.req(x, card, this)).length).length) return false;
     if (!this.getCost(card).pay(card, true)) return false;
-    if(this.manaAbility) {
+    if (this.manaAbility) {
       this.effect.forEach(i => i.resolve(card)); // If mana ability, no need to stack it
       UI.renderBattlefield();
     }
@@ -73,8 +73,6 @@ class TriggeredAbility extends Ability {
   }
 }*/
 
-// Static abilities are a little weird. Each individual one actually extends StaticAbility
-// TODO: Replace with hooks.
 /*abstract class StaticAbility extends Ability {
   // A common parent for static abilities specifically. Does nothing itself.
 }

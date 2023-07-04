@@ -3,7 +3,7 @@ import { ActivatedAbility } from "./ability.js";
 import { AddManaEffect, CreateTokenEffect, AddCounterOnSelfEffect, ApplyAbilityOnSelfEffect } from "./effect.js";
 import { SacrificeSelfCost, TapCost } from "./cost.js";
 import { Mana, ManaCost } from "./mana.js";
-import { PlayCardHook, BeginStepHook, StatsHook } from "./hook.js";
+import { PlayCardHook, BeginStepHook, StatsHook, ProtectionAbility } from "./hook.js";
 import { Creature } from "./permanent.js";
 import { Battlefield } from "./globals.js";
 import { Step } from "./turn.js";
@@ -38,10 +38,7 @@ export class GiantGrowthCard extends SpellCard {
 class FerrousRokiricCard extends CreatureCard {
     constructor() {
         super('General Ferrous Rokiric', ['Creature', 'Legendary', 'Human', 'Soldier'], 'Protection from monocolored. Whenever you cast a multicolored spell, create a 4/4 red and white Golem token.', 3, 1, new ManaCost({ red: 1, white: 1, colorless: 1 }), [
-            /*new ProtectionAbility(source =>
-                  source instanceof Permanent &&
-                  source.representedCard.colors.length == 1
-            ),*/
+            new ProtectionAbility(source => source.colors.length == 1),
             new PlayCardHook(orig => (that, card, free, noCheck, force) => {
                 if (!(card.types.includes("Land")) && card.colors.length >= 2 && this.representedPermanent) {
                     new CreateTokenEffect(new CreatureCard("Golem Token", ["Creature", "Token", "Golem"], "", 4, 4)).resolve(this.representedPermanent);

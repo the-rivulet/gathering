@@ -3,7 +3,7 @@ import { Mana } from "./mana.js";
 import { Creature, Permanent } from "./permanent.js";
 import { Battlefield, TurnManager, StackManager } from "./globals.js";
 import { StackCard } from "./stack.js";
-import { ApplyHooks, PlayCardHook } from "./hook.js";
+import { ApplyHooks, HasValidTargetsHook, PlayCardHook, CheckTargetsHook } from "./hook.js";
 import { TapCost } from "./cost.js";
 import { ZoneManager, Zone } from "./zone.js";
 import { Step } from "./turn.js";
@@ -11,16 +11,26 @@ import { UI } from "./ui.js";
 
 export class SelectionData {
   card?: Card;
-  validate: (t: any[]) => boolean;
-  possible: () => boolean;
+  baseValidate: (t: any[]) => boolean;
+  basePossible: (field: Permanent[]) => boolean;
   message: string;
   continuation: (result: any) => any;
-  constructor(card: Card, validate: (t: any[]) => boolean, possible: () => boolean, message: string, continuation: (result: any) => any) {
+  constructor(card: Card, validate: (t: any[]) => boolean, possible: (field: Permanent[]) => boolean, message: string, continuation: (result: any) => any) {
     this.card = card;
-    this.validate = validate;
-    this.possible = possible;
+    this.baseValidate = validate;
+    this.basePossible = possible;
     this.message = message;
     this.continuation = continuation;
+  }
+  possible(field: Permanent[]): boolean {
+    return ApplyHooks(x => x instanceof HasValidTargetsHook, function(that: SelectionData, field: Permanent[]) {
+      return that.basePossible(field);
+    }, this, field);
+  }
+  validate(t: any[]): boolean {
+    return ApplyHooks(x => x instanceof CheckTargetsHook, function(that: SelectionData, t: any[]) {
+      return that.baseValidate(t);
+    }, this, t);
   }
 }
 
@@ -95,7 +105,7 @@ export class Player {
   }
   async castSpell(card: SpellCard, forceTargets?: any[], free = false, auto = false) {
     if (!card.castable(this, auto, free)) return false;
-    if(!card.possible(this, card)) return false;
+    if(!card.possible(Battlefield)) return false;
     let doIt = (targets: any[]) => {
       if (!card.castable(this, auto, free) || !card.validate(targets))
         return false;
@@ -111,7 +121,7 @@ export class Player {
       this.selectTargets(
         card,
         card.validate,
-        () => card.possible(this, card),
+        () => card.possible(Battlefield),
         "Select the spell's targets",
         doIt
       );
@@ -119,7 +129,7 @@ export class Player {
     }
   }
   async castAura(card: AuraCard, forceTarget?: Permanent | Player, free = false, auto = false) {
-    if (!card.castable(this, auto, free) || !card.possible())
+    if (!card.castable(this, auto, free) || !card.possible(Battlefield))
         return false;
     let doIt = (targets: any[]) => {
       if (!card.castable(this, auto, free) || !card.validate(targets[0]))
@@ -133,7 +143,7 @@ export class Player {
       this.selectTargets(
         card,
         t => t.length == 1 && card.validate(t[0]),
-        card.possible,
+        () => card.possible(Battlefield),
         "Select the aura's targets",
         doIt
       );

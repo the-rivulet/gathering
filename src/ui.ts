@@ -4,6 +4,7 @@ import type { Creature, Permanent } from "./permanent.js";
 import type { ActivatedAbility } from "./ability.js";
 import { TurnManager, Battlefield, StackManager, Settings } from "./globals.js";
 import { StackCard, StackEffect } from "./stack.js";
+import { Zone } from "./zone.js";
 
 let getId = (x: string) => document.getElementById(x);
 
@@ -65,21 +66,21 @@ function renderRow(cards: Card[], offset: number) {
     }
     tx.innerHTML += "<hline></hline>";
     if(card.landPlayable(card.owner)) {
-      tx.innerHTML += "<hline></hline>Click to play this land.";
+      tx.innerHTML += "Click to play this land.";
     } else if(card.castable(card.owner)) {
       let asAura = card as AuraCard;
       let asSpell = card as SpellCard;
-      if(asAura && !asAura.possible()) {
-        tx.innerHTML += "<hline></hline>This aura has nothing to enchant.";
-      } else if(asSpell && !asSpell.possible(card.owner, asSpell)) {
-        tx.innerHTML += "<hline></hline>This spell has no valid targets.";
+      if(asAura && !asAura.possible(Battlefield)) {
+        tx.innerHTML += "This aura has nothing to enchant.";
+      } else if(asSpell && !asSpell.possible(Battlefield)) {
+        tx.innerHTML += "This spell has no valid targets.";
       } else {
-        tx.innerHTML += "<hline></hline>Click to cast this card for " + card.manaCost.asHTML + ".";
+        tx.innerHTML += "Click to cast this card for " + card.manaCost.asHTML + ".";
       }
     } else if(card.castable(card.owner, false, true)) {
-      tx.innerHTML += "<hline></hline>You cannot pay " + card.manaCost.asHTML + " right now (you have " + card.owner.manaPool.asHTML + ").";
-    } else {
-      tx.innerHTML += "<hline></hline>This card is not playable right now.";
+      tx.innerHTML += "You cannot pay " + card.manaCost.asHTML + " right now (you have " + card.owner.manaPool.asHTML + ").";
+    } else if(card.zone == Zone.hand) {
+      tx.innerHTML += "This card is not playable right now.";
     }
     tx.classList.add("tx");
     tt.appendChild(tx);
@@ -90,9 +91,9 @@ function renderRow(cards: Card[], offset: number) {
       if (c && c.abilities.filter(x => x as ActivatedAbility).length) {
         let a = c.abilities.filter(x => x as ActivatedAbility)[0] as ActivatedAbility;
         if(a.getCost(c).pay(c, false)) {
-          tx.innerHTML += "<hline></hline>Click to activate " + (card.hasAbilityMarker(1) ? ' " ' + textAsHTML(card.getAbilityInfo(1)) + ' "' : "this card's ability.");
+          tx.innerHTML += "Click to activate " + (card.hasAbilityMarker(1) ? ' " ' + textAsHTML(card.getAbilityInfo(1)) + ' "' : "this card's ability.");
         } else {
-          tx.innerHTML += "<hline></hline>You cannot " + (card.hasAbilityMarker(1) ? 'activate " ' + textAsHTML(card.getAbilityInfo(1, "effect")) + ' " because you cannot pay " ' + textAsHTML(card.getAbilityInfo(1, "cost")) + ' "' : "pay this ability's cost") + " right now.";
+          tx.innerHTML += "You cannot " + (card.hasAbilityMarker(1) ? 'activate " ' + textAsHTML(card.getAbilityInfo(1, "effect")) + ' " because you cannot pay " ' + textAsHTML(card.getAbilityInfo(1, "cost")) + ' "' : "pay this ability's cost") + " right now.";
         }
       }
     }
@@ -198,7 +199,7 @@ function updateSelection(player: Player) {
  */
 async function selectTargets(player: Player) {
   let data = player.selectionData;
-  if (!data || !data.possible()) return;
+  if (!data || !data.possible(Battlefield)) return;
   let update = () => updateSelection(player);
   //getId("cover").style.opacity = "10%";
   // Change the button

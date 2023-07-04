@@ -1,7 +1,8 @@
 import { Zone } from "./zone.js";
-import { TurnManager, Battlefield } from "./globals.js";
+import { TurnManager } from "./globals.js";
 import { Step } from "./turn.js";
 import { UI } from "./ui.js";
+import { ApplyHooks, HasValidTargetsHook, CheckTargetsHook } from "./hook.js";
 export class Card {
     uuid = Math.random();
     name;
@@ -86,14 +87,24 @@ export class PermanentCard extends Card {
 }
 export class SpellCard extends Card {
     resolve;
-    validate;
-    possible;
+    baseValidate;
+    basePossible;
     controller;
     constructor(name, types, text = '', validate, possible, func, mana) {
         super(name, (types.includes("Instant") || types.includes("Sorcery")) ? types : ["Instant", ...types], text, mana);
         this.resolve = func;
-        this.validate = validate;
-        this.possible = possible;
+        this.baseValidate = validate;
+        this.basePossible = possible;
+    }
+    possible(field) {
+        return ApplyHooks(x => x instanceof HasValidTargetsHook, function (that, field) {
+            return that.basePossible(that, field);
+        }, this, field);
+    }
+    validate(targets) {
+        return ApplyHooks(x => x instanceof CheckTargetsHook, function (that, targets) {
+            return that.baseValidate(targets);
+        }, this, targets);
     }
     makeEquivalentCopy;
 }
@@ -107,13 +118,23 @@ export class CreatureCard extends PermanentCard {
     }
 }
 export class AuraCard extends PermanentCard {
-    validate;
+    baseValidate;
     attached;
     constructor(name, text = '', validate, mana, abilities) {
         super(name, ['Enchantment', 'Aura'], text, mana, abilities);
-        this.validate = validate;
+        this.baseValidate = validate;
     }
-    possible() {
-        return [...Battlefield, ...TurnManager.playerList].filter(x => this.validate(x)).length > 0;
+    basePossible(field) {
+        return [...field, ...TurnManager.playerList].filter(x => this.validate(x)).length > 0;
+    }
+    possible(field) {
+        return ApplyHooks(x => x instanceof HasValidTargetsHook, function (that, field) {
+            return that.basePossible(field);
+        }, this, field);
+    }
+    validate(attached) {
+        return ApplyHooks(x => x instanceof CheckTargetsHook, function (that, targets) {
+            return that.baseValidate(targets[0]);
+        }, this, [attached]);
     }
 }

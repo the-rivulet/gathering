@@ -6,6 +6,7 @@ import { Zone } from "./zone.js";
 import { TurnManager, Battlefield } from "./globals.js";
 import { Step } from "./turn.js";
 import { UI } from "./ui.js";
+import { ApplyHooks, HasValidTargetsHook, CheckTargetsHook } from "./hook.js";
 
 export abstract class Card {
   uuid = Math.random();
@@ -94,22 +95,32 @@ export class PermanentCard extends Card {
 
 export class SpellCard extends Card {
   resolve: (card: SpellCard, target: any[]) => void;
-  validate: (target: any[]) => boolean;
-  possible: (plyr: Player, self: SpellCard) => boolean;
-  controller: Player;
+  baseValidate: (targets: any[]) => boolean;
+  basePossible: (self: SpellCard, field: Permanent[]) => boolean;
+  controller?: Player;
   constructor(
     name: string,
     types: string[],
     text = '',
-    validate: (target: any[]) => boolean,
-    possible: (plyr: Player, self: SpellCard) => boolean,
+    validate: (targets: any[]) => boolean,
+    possible: (self: SpellCard, field: Permanent[]) => boolean,
     func: (self: SpellCard, targets: any[]) => void,
     mana?: ManaCost
   ) {
     super(name, (types.includes("Instant") || types.includes("Sorcery")) ? types : ["Instant", ...types], text, mana);
     this.resolve = func;
-    this.validate = validate;
-    this.possible = possible;
+    this.baseValidate = validate;
+    this.basePossible = possible;
+  }
+  possible(field: Permanent[]): boolean {
+    return ApplyHooks(x => x instanceof HasValidTargetsHook, function(that: SpellCard, field: Permanent[]) {
+      return that.basePossible(that, field);
+    }, this, field);
+  }
+  validate(targets: any[]): boolean {
+    return ApplyHooks(x => x instanceof CheckTargetsHook, function(that: SpellCard, targets: any[]) {
+      return that.baseValidate(targets);
+    }, this, targets);
   }
   makeEquivalentCopy: () => SpellCard;
 }
@@ -134,7 +145,7 @@ export class CreatureCard extends PermanentCard {
 }
 
 export class AuraCard extends PermanentCard {
-  validate: (attached: Permanent | Player) => boolean;
+  baseValidate: (attached: Permanent | Player) => boolean;
   attached: Permanent | Player;
   constructor(
     name: string,
@@ -144,10 +155,20 @@ export class AuraCard extends PermanentCard {
     abilities?: Ability[] | Ability
   ) {
     super(name, ['Enchantment', 'Aura'], text, mana, abilities);
-    this.validate = validate;
+    this.baseValidate = validate;
   }
-  possible() {
-    return [...Battlefield, ...TurnManager.playerList].filter(x => this.validate(x)).length > 0;
+  basePossible(field: Permanent[]) {
+    return [...field, ...TurnManager.playerList].filter(x => this.validate(x)).length > 0;
+  }
+  possible(field: Permanent[]): boolean {
+    return ApplyHooks(x => x instanceof HasValidTargetsHook, function(that: AuraCard, field: Permanent[]) {
+      return that.basePossible(field);
+    }, this, field);
+  }
+  validate(attached: Permanent | Player): boolean {
+    return ApplyHooks(x => x instanceof CheckTargetsHook, function(that: AuraCard, targets: Permanent[] | Player[]) {
+      return that.baseValidate(targets[0]);
+    }, this, [attached]);
   }
   declare makeEquivalentCopy: () => AuraCard;
 }
