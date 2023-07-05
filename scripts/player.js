@@ -14,12 +14,14 @@ export class SelectionData {
     basePossible;
     message;
     continuation;
-    constructor(card, validate, possible, message, continuation) {
+    limitOne;
+    constructor(card, validate, possible, message, continuation, limitOne = false) {
         this.card = card;
         this.baseValidate = validate;
         this.basePossible = possible;
         this.message = message;
         this.continuation = continuation;
+        this.limitOne = limitOne;
     }
     possible(field) {
         return ApplyHooks(x => x instanceof HasValidTargetsHook, function (that, field) {
@@ -44,9 +46,7 @@ export class Player {
     timesTempted = 0;
     ringBearer;
     selectionData;
-    passedPriority = false;
-    endedPhase = false;
-    endedTurn = false;
+    choosing = false;
     constructor(name, deck, life = 20) {
         this.name = name;
         this.deck = deck;
@@ -87,10 +87,13 @@ export class Player {
         UI.renderBattlefield();
         return true;
     }
-    selectTargets(card = undefined, validate, possible, message, continuation) {
+    get uiElement() {
+        return UI.getId("playerinfo" + TurnManager.playerList.indexOf(this));
+    }
+    selectTargets(card = undefined, validate, possible, message, continuation, limitOne = false) {
         if (!possible())
             return;
-        this.selectionData = new SelectionData(card, validate, possible, message, continuation);
+        this.selectionData = new SelectionData(card, validate, possible, message, continuation, limitOne);
         UI.selectTargets(this);
     }
     playLand(card, free = false, auto = false) {
@@ -155,14 +158,13 @@ export class Player {
         if (forceTarget)
             return doIt([forceTarget]);
         else {
-            this.selectTargets(card, t => t.length == 1 && card.validate(card, t[0]), () => card.possible(card, Battlefield), "Select the aura's targets", doIt);
+            this.selectTargets(card, t => t.length == 1 && card.validate(card, t[0]), () => card.possible(card, Battlefield), "Select the aura's targets", doIt, true);
             return true;
         }
     }
     async play(card, free = false, noCheck = false, forceTargets) {
         ApplyHooks(x => x instanceof PlayCardHook, (that, card, free, noCheck, forceTargets) => {
-            console.log("Playing " + card.name + ".");
-            if (card.types.includes('Land'))
+            if (card.types.includes('Land') && card instanceof PermanentCard)
                 return that.playLand(card, free, noCheck);
             else if (card instanceof AuraCard)
                 return that.castAura(card, forceTargets ? forceTargets[0] : undefined, free, noCheck);
@@ -172,9 +174,6 @@ export class Player {
                 return that.castSpell(card, forceTargets, free, noCheck);
             return false;
         }, this, card, free, noCheck, forceTargets);
-    }
-    async getConfirmation() {
-        return true;
     }
     createToken(card) {
         // Cannot just create the card on the battlefield, it needs to trigger move effects
@@ -218,23 +217,23 @@ export class Player {
     get attackers() {
         return Battlefield.filter(x => x instanceof Creature && x.attacking && x.controller == this);
     }
-    markAsBlocker(card, blocking) {
+    markAsBlocker(card, blocking, real = true) {
         if (blocking && (blocking.controller == this || !blocking.attacking))
             return false;
         if (card.controller != this || TurnManager.step != Step.declare_blockers || TurnManager.defendingPlayer != this || card.tapped)
             return false;
         if (card.blocking.length)
             return false; // TODO: make this its own function and add a hook
-        if (blocking)
+        if (blocking && real)
             card.blocking.push(blocking);
         return true;
     }
-    unmarkAsBlocker(card, blocking) {
+    unmarkAsBlocker(card, blocking, real = true) {
         if (card.controller != this || TurnManager.step != Step.declare_blockers || TurnManager.defendingPlayer != this)
             return false;
         if (!blocking && (blocking.controller == this || !card.blocking.includes(blocking)))
             return false;
-        if (blocking)
+        if (blocking && real)
             card.blocking.splice(card.blocking.indexOf(blocking), 1);
         return true;
     }
@@ -250,10 +249,17 @@ export class Player {
         }
         return true;
     }
-    async getColor() {
-        return 'white';
+    getConfirmation(message, continuation) {
+        UI.chooseOptions(this, ["Yes", "No"], 1, message, result => continuation(result[0] == 0));
     }
-    async chooseOptions(descriptions, howMany = 1) {
-        return descriptions.slice(0, howMany);
+    /**
+     * 0 = white, 1 = blue, 2 = black, 3 = red, 4 = green
+     */
+    getColor(message, continuation) {
+        let colorList = ["white", "blue", "black", "red", "green"];
+        UI.chooseOptions(this, colorList.map(x => new Mana({ [x]: 1 }).asHTML + " " + x), 1, message, result => continuation(result[0]));
+    }
+    chooseOptions(descriptions, howMany = 1, message, continuation) {
+        UI.chooseOptions(this, descriptions, howMany, message, continuation);
     }
 }

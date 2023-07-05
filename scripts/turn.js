@@ -9,11 +9,9 @@ export var Step;
     Step[Step["upkeep"] = 101] = "upkeep";
     Step[Step["draw"] = 102] = "draw";
     Step[Step["precombat_main"] = 200] = "precombat_main";
-    Step[Step["before_combat"] = 300] = "before_combat";
     Step[Step["declare_attackers"] = 301] = "declare_attackers";
     Step[Step["declare_blockers"] = 302] = "declare_blockers";
     Step[Step["deal_damage"] = 303] = "deal_damage";
-    Step[Step["after_combat"] = 304] = "after_combat";
     Step[Step["postcombat_main"] = 400] = "postcombat_main";
     Step[Step["end"] = 500] = "end";
     Step[Step["cleanup"] = 501] = "cleanup";
@@ -22,6 +20,9 @@ export class TurnManagerClass {
     playerList = [];
     currentPlayer;
     defendingPlayer;
+    passedPriority;
+    endedPhase;
+    endedTurn;
     step = Step.untap;
     stepIndex = 0;
     stepList = [
@@ -29,11 +30,9 @@ export class TurnManagerClass {
         Step.upkeep,
         Step.draw,
         Step.precombat_main,
-        Step.before_combat,
         Step.declare_attackers,
         Step.declare_blockers,
         Step.deal_damage,
-        Step.after_combat,
         Step.postcombat_main,
         Step.end,
         Step.cleanup,
@@ -164,8 +163,15 @@ export class TurnManagerClass {
         }
         if (targetStep && this.step != targetStep)
             this.advance(targetStep);
-        else if (targetStep)
-            console.log("Quick-advanced to step: " + this.stepName);
+    }
+    get ongoingSelection() {
+        return this.playerList.filter(x => x.selectionData).length > 0;
+    }
+    get selectingPlayer() {
+        return this.playerList.filter(x => x.selectionData)[0];
+    }
+    get choosing() {
+        return this.playerList.filter(x => x.choosing).length > 0;
     }
     get autoAdvance() {
         return [Step.untap, Step.cleanup, Step.deal_damage, Step.draw].includes(this.step);
@@ -174,26 +180,20 @@ export class TurnManagerClass {
         let that = TurnManager; // what the flurp?
         if (!that.playerList.length)
             return;
-        if ((that.playerList.filter(x => !x.endedTurn && !x.endedPhase).length && !that.autoAdvance) || StackManager.stack.length)
+        if ((!that.endedPhase && !that.endedTurn && !that.autoAdvance) || StackManager.stack.length || that.choosing)
             return;
-        if (!that.playerList.filter(x => !x.endedTurn).length) {
+        if (that.endedTurn) {
             // End the turn
             that.advance(Step.untap);
-            // Unready players
-            for (let i of that.playerList) {
-                i.endedTurn = false;
-                i.endedPhase = false;
-                i.passedPriority = false;
-            }
+            that.passedPriority = false;
+            that.endedPhase = false;
+            that.endedTurn = false;
         }
         else {
             // Advance one phase
             that.advance();
-            // Unready players
-            for (let i of that.playerList) {
-                i.endedPhase = false;
-                i.passedPriority = false;
-            }
+            that.passedPriority = false;
+            that.endedPhase = false;
         }
         that.advanceIfReady();
     }

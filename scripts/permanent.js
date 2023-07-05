@@ -139,6 +139,18 @@ export class Creature extends Permanent {
     get blockedBy() {
         return Battlefield.filter(x => x instanceof Creature && x.blocking.includes(this));
     }
+    markAsAttacker(real = true) {
+        return this.controller.markAsAttacker(this, real);
+    }
+    unmarkAsAttacker(real = true) {
+        return this.controller.unmarkAsAttacker(this, real);
+    }
+    markAsBlocker(blocking, real = true) {
+        return this.controller.markAsBlocker(this, blocking, real);
+    }
+    unmarkAsBlocker(blocking, real = true) {
+        return this.controller.unmarkAsBlocker(this, blocking, real);
+    }
     takeDamage(source, amount, combat = false) {
         let a = typeof amount == 'number' ? amount : amount();
         //TriggerEffects(Events.onDealDamage, {source: source, target: this, amount: a, combat: combat});

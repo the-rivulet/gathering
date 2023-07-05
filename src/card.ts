@@ -138,6 +138,18 @@ export class CreatureCard extends PermanentCard {
     this.power = power;
     this.toughness = toughness;
   }
+  markAsAttacker(real = true) {
+    return this.representedPermanent?.markAsAttacker(real);
+  }
+  unmarkAsAttacker(real = true) {
+    return this.representedPermanent?.unmarkAsAttacker(real);
+  }
+  markAsBlocker(blocking?: Creature, real = true) {
+    return this.representedPermanent?.markAsBlocker(blocking, real);
+  }
+  unmarkAsBlocker(blocking?: Creature, real = true) {
+    return this.representedPermanent?.unmarkAsBlocker(blocking, real);
+  }
   declare makeEquivalentCopy: () => CreatureCard;
 }
 

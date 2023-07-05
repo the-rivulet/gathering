@@ -10,11 +10,9 @@ export enum Step {
   upkeep = 101,
   draw = 102,
   precombat_main = 200,
-  before_combat = 300,
   declare_attackers = 301,
   declare_blockers = 302,
   deal_damage = 303,
-  after_combat = 304,
   postcombat_main = 400,
   end = 500,
   cleanup = 501,
@@ -24,6 +22,9 @@ export class TurnManagerClass {
   playerList: Player[] = [];
   currentPlayer: Player;
   defendingPlayer: Player;
+  passedPriority: boolean;
+  endedPhase: boolean;
+  endedTurn: boolean;
   step = Step.untap;
   stepIndex = 0;
   stepList = [
@@ -31,11 +32,9 @@ export class TurnManagerClass {
     Step.upkeep,
     Step.draw,
     Step.precombat_main,
-    Step.before_combat,
     Step.declare_attackers,
     Step.declare_blockers,
     Step.deal_damage,
-    Step.after_combat,
     Step.postcombat_main,
     Step.end,
     Step.cleanup,
@@ -126,7 +125,7 @@ export class TurnManagerClass {
           i.attacking = false; // Remove "attacker" status now that it is no longer needed
         }
         // Remove "blocker" status now that it is no longer needed
-        for(let b of Battlefield.filter(x => x instanceof Creature)) {
+        for (let b of Battlefield.filter(x => x instanceof Creature)) {
           (b as Creature).blocking = [];
         }
       } else if (that.step == Step.draw) {
@@ -172,7 +171,15 @@ export class TurnManagerClass {
       }
     }
     if (targetStep && this.step != targetStep) this.advance(targetStep);
-    else if (targetStep) console.log("Quick-advanced to step: " + this.stepName);
+  }
+  get ongoingSelection() {
+    return this.playerList.filter(x => x.selectionData).length > 0;
+  }
+  get selectingPlayer() {
+    return this.playerList.filter(x => x.selectionData)[0];
+  }
+  get choosing() {
+    return this.playerList.filter(x => x.choosing).length > 0;
   }
   get autoAdvance() {
     return [Step.untap, Step.cleanup, Step.deal_damage, Step.draw].includes(this.step);
@@ -180,24 +187,18 @@ export class TurnManagerClass {
   advanceIfReady() {
     let that = TurnManager; // what the flurp?
     if (!that.playerList.length) return;
-    if ((that.playerList.filter(x => !x.endedTurn && !x.endedPhase).length && !that.autoAdvance) || StackManager.stack.length) return;
-    if (!that.playerList.filter(x => !x.endedTurn).length) {
+    if ((!that.endedPhase && !that.endedTurn && !that.autoAdvance) || StackManager.stack.length || that.choosing) return;
+    if (that.endedTurn) {
       // End the turn
       that.advance(Step.untap);
-      // Unready players
-      for (let i of that.playerList) {
-        i.endedTurn = false;
-        i.endedPhase = false;
-        i.passedPriority = false;
-      }
+      that.passedPriority = false;
+      that.endedPhase = false;
+      that.endedTurn = false;
     } else {
       // Advance one phase
       that.advance();
-      // Unready players
-      for (let i of that.playerList) {
-        i.endedPhase = false;
-        i.passedPriority = false;
-      }
+      that.passedPriority = false;
+      that.endedPhase = false;
     }
     that.advanceIfReady();
   }

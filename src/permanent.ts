@@ -46,7 +46,7 @@ export class Permanent {
     ApplyHooks(x => x instanceof DestroyPermanentHook, (that: Permanent) => {
       Battlefield.splice(Battlefield.indexOf(that), 1);
       UI.renderBattlefield();
-      if(that.representedCard.zone == Zone.battlefield) that.owner.moveCardTo(that.representedCard, Zone.graveyard);
+      if (that.representedCard.zone == Zone.battlefield) that.owner.moveCardTo(that.representedCard, Zone.graveyard);
     }, this);
   }
   sacrifice() {
@@ -138,11 +138,23 @@ export class Creature extends Permanent {
   get blockedBy() {
     return (Battlefield.filter(x => x instanceof Creature && x.blocking.includes(this)) as Creature[]);
   }
+  markAsAttacker(real = true) {
+    return this.controller.markAsAttacker(this, real);
+  }
+  unmarkAsAttacker(real = true) {
+    return this.controller.unmarkAsAttacker(this, real);
+  }
+  markAsBlocker(blocking?: Creature, real = true) {
+    return this.controller.markAsBlocker(this, blocking, real);
+  }
+  unmarkAsBlocker(blocking?: Creature, real = true) {
+    return this.controller.unmarkAsBlocker(this, blocking, real);
+  }
   takeDamage(source: Card | Permanent, amount: number | (() => number), combat = false) {
     let a = typeof amount == 'number' ? amount : amount();
     //TriggerEffects(Events.onDealDamage, {source: source, target: this, amount: a, combat: combat});
     this.damage += a;
-    if(this.damage >= this.toughness) this.destroy();
+    if (this.damage >= this.toughness) this.destroy();
   }
   removeDamage(amount: number = Infinity) {
     //TriggerEffects(Events.onRemoveDamage, {creature: this, amount: amount, removed: Math.min(amount, this.damage)})

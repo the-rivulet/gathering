@@ -60,16 +60,12 @@ export class StackManagerClass {
     }
   }
   get ready() {
-    return !TurnManager.playerList.filter(x => (!x.endedTurn && !x.endedPhase && !x.passedPriority) || x.selectionData).length;
+    return (TurnManager.passedPriority || TurnManager.endedPhase || TurnManager.endedTurn) && !TurnManager.ongoingSelection && !TurnManager.choosing;
   }
   resolveIfReady(counter = 0) {
-    if(!this.ready) return;
+    if (!this.ready) return;
     this.resolveNext();
-    for(let i of TurnManager.playerList) {
-      if(i.passedPriority) {
-        i.passedPriority = false;
-      }
-    }
-    if(this.stack.length && counter < Settings.maxRepeats) this.resolveIfReady();
+    TurnManager.passedPriority = false;
+    if (this.stack.length && counter < Settings.maxRepeats) this.resolveIfReady();
   }
 }

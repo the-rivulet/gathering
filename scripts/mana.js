@@ -87,8 +87,8 @@ export class Mana {
         let order = ["white", "blue", "black", "red", "green"];
         let s = this.colors["generic"] || 0;
         let keys = Object.keys(this.colors);
-        keys.sort((a, b) => order.includes(a) ? (order.includes(b) ? (order.indexOf(a) < order.indexOf(b) ? 1 : -1) : 1) : order.includes(b) ? -1 : 0);
-        return UI.textAsHTML(this.value ? (s ? "{" + s + "}" : "") + keys.map(x => (x == "generic" ? "" : ("{" + x[0].toUpperCase() + "}").repeat(this.colors[x]))).join("") : "{0}");
+        keys.sort((a, b) => order.includes(a) ? (order.includes(b) ? (order.indexOf(a) > order.indexOf(b) ? 1 : -1) : 1) : order.includes(b) ? -1 : 0);
+        return UI.textAsHTML(this.value ? (s ? "{" + s + "}" : "") + keys.map(x => (x == "generic" ? "" : ("{" + (x == "blue" ? "U" : x[0].toUpperCase()) + "}").repeat(this.colors[x]))).join("") : "{0}");
     }
     plus(other) {
         return ManaFromSymbols([
@@ -132,7 +132,6 @@ export class Mana {
         // Woot!
         if (spend)
             this.symbols = sym;
-        console.log((spend ? "Paid " : "Can pay ") + JSON.stringify(cost) + (card ? " (" + card.name + ")" : "") + " successfully. New symbols: " + JSON.stringify(this.symbols));
         return true;
     }
 }

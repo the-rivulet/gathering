@@ -22,16 +22,41 @@ export class AddManaEffect extends Effect {
         else if (typeof mana == 'object')
             this.mana = new Mana(mana);
     }
-    async resolve(card) {
-        let nm = this.mana;
-        for (let i of Object.keys(nm.colors).filter(x => x.startsWith('any'))) {
-            let c = await card.controller.getColor();
-            if (nm[c])
-                nm[c] += nm[i];
-            else
-                nm[c] = nm[i];
+    resolve(card) {
+        let colorList = ["white", "blue", "black", "red", "green"];
+        let mana = this.mana;
+        let anys = Object.keys(this.mana.colors).filter(x => x.startsWith("any"));
+        let func;
+        let vals = [];
+        for (let i = 0; i < anys.length; i++) {
+            let name = anys[i];
+            let val = this.mana.colors[name];
+            vals.push(val);
+            let curInd = func ? func.length - 1 : -1;
+            if (curInd >= 0) {
+                func.push((x) => {
+                    card.controller.getColor("Choose a color to add " + vals[x] + " of", result => {
+                        let col = colorList[result[0]];
+                        mana.add(new Mana({ [col]: vals[x] }));
+                        func[curInd](x - 1);
+                    });
+                });
+            }
+            else {
+                func = [(x) => {
+                        card.controller.getColor("Choose a color to add " + vals[x] + " of", result => {
+                            let col = colorList[result[0]];
+                            mana.add(new Mana({ [col]: vals[x] }));
+                            this.mana.symbols = this.mana.symbols.filter(x => !x.color.startsWith("any"));
+                            card.controller.manaPool.add(mana);
+                        });
+                    }];
+            }
         }
-        card.controller.manaPool.add(nm);
+        if (func)
+            func[func.length - 1](func.length - 1);
+        else
+            card.controller.manaPool.add(mana);
         return true;
     }
 }
@@ -71,34 +96,6 @@ export class AddCounterOnSelfEffect extends Effect {
     resolve(card) {
         card.addCounter(this.counter, this.amount);
         return true;
-    }
-}
-class ChooseOptionsEffect extends Effect {
-    desc;
-    effects;
-    count;
-    constructor(desc, effects, count = 1) {
-        super(); // Pointless lol
-        this.desc = desc;
-        this.effects = effects;
-        this.count = count;
-    }
-    async resolve(card) {
-        let c = await card.controller.chooseOptions(this.desc, this.count);
-        let worked = false;
-        for (let i of c) {
-            let n = this.desc.indexOf(i);
-            let p = this.effects[n];
-            let x = (p instanceof Effect ? [p] : p);
-            for (let e of (n < this.effects.length ? x : [new AddManaEffect()])) {
-                let r = await e.resolve(card);
-                if (!r)
-                    break;
-                else
-                    worked = true;
-            }
-        }
-        return worked;
     }
 }
 export class DrawCardsEffect extends Effect {
