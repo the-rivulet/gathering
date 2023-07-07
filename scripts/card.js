@@ -27,6 +27,16 @@ export class Card {
         if (this.manaCost)
             this.manaCost.card = this;
     }
+    getTooltip(textAsHTML, pow = true) {
+        let t = `
+    ${this.manaCost ? "(" + this.manaCost.asHTML + ") " : ""}${this.name}<br/>
+      ${this.supertypes.join(" ")} ${this.majorTypes.join(" ")}${this.subtypes.length ? " - " : ""}${this.subtypes.join(" ")}<br/>
+      ${textAsHTML(this.text.replaceAll("{CARDNAME", this.name))}`;
+        if (this instanceof CreatureCard && pow) {
+            t += `<br/>${this.power}/${this.toughness}`;
+        }
+        return t;
+    }
     hasAbilityMarker(a) {
         return this.text.includes(`{A${a}}`) && this.text.includes(`{EC${a}}`) && this.text.includes(`{EA${a}}`);
     }

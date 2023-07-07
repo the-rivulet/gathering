@@ -65,10 +65,7 @@ function renderRow(cards: Card[], offset: number, valids: Card[] = []) {
       tt.classList.remove("selected");
     }
     let tx = document.createElement("span");
-    tx.innerHTML = `
-    ${card.manaCost ? "(" + card.manaCost.asHTML + ") " : ""}${card.name}<br/>
-      ${card.supertypes.join(" ")} ${card.majorTypes.join(" ")} - ${card.subtypes.join(" ")}<br/>
-      ${textAsHTML(card.text.replaceAll("{CARDNAME", card.name))}`;
+    tx.innerHTML = card.getTooltip(textAsHTML, false);
     if (card instanceof CreatureCard) {
       if (card.representedPermanent) {
         tx.innerHTML += `<br/>${card.representedPermanent.power}/${card.representedPermanent.toughness}${(card.power != card.representedPermanent.power || card.toughness != card.representedPermanent.toughness) ? ` (base ${card.power}/${card.toughness})` : ""}`;
@@ -177,9 +174,9 @@ function renderRow(cards: Card[], offset: number, valids: Card[] = []) {
             }
           }
         }
-        if (!canAttack && !canBlock && !attacking && !blocking.length && c.abilities.filter(x => x as ActivatedAbility).length) {
-          let a = c.abilities.filter(x => x as ActivatedAbility)[0] as ActivatedAbility;
-          if (a) a.activate(c);
+        if (!canAttack && !canBlock && !attacking && !blocking.length && c.abilities.filter(x => x instanceof ActivatedAbility).length) {
+          let a = c.abilities.filter(x => x instanceof ActivatedAbility)[0] as ActivatedAbility;
+          if (a.activate) a.activate(c);
 
         }
       }
@@ -245,6 +242,137 @@ function renderBattlefield() {
       }
     }
   }
+  // Piles
+  for (let p of TurnManager.playerList) {
+    let ind = TurnManager.playerList.indexOf(p);
+    if (!getId("pile-gy-" + ind)) {
+      let newgy = document.createElement("div");
+      newgy.classList.add("tt");
+      newgy.id = "pile-gy-" + ind;
+      if (ind == 0) newgy.style.top = "35px";
+      else newgy.style.bottom = "35px";
+      let gytt = document.createElement("span");
+      gytt.classList.add("tx");
+      gytt.id = "gytt-" + ind;
+      let gytxt = document.createElement("span");
+      gytxt.id = "gytxt-" + ind;
+      newgy.appendChild(gytxt);
+      newgy.appendChild(gytt);
+      getId("piles").appendChild(newgy);
+
+    }
+    let gy = getId("pile-gy-" + ind);
+    let gytxt = getId("gytxt-" + ind);
+    let gytt = getId("gytt-" + ind);
+    if (p.zones.graveyard.length) {
+      let card = p.zones.graveyard[p.zones.graveyard.length - 1];
+      gytt.innerHTML = card.getTooltip(textAsHTML) + `<hline></hline>Click to toggle graveyard (${p.zones.graveyard.length} cards)`;
+      gytxt.textContent = card.name;
+      let bgc = card.colors.map(x => (
+        x == "white" ? "silver" :
+          x == "blue" ? "cyan" :
+            x == "black" ? "#666" :
+              x == "red" ? "firebrick" :
+                x == "green" ? "lime" : "white"
+      ));
+      let bg = bgc.length == 1 ? bgc[0] : bgc.length ? "linear-gradient(" + bgc.join(", ") + ")" : "white";
+      gy.style.background = bg;
+    } else {
+      gy.style.background = "rgba(255, 255, 255, 0.3)";
+      gytxt.textContent = "Grave";
+      gytt.textContent = "Graveyard (empty)";
+    }
+    if (!getId("pile-ex-" + ind)) {
+      let newex = document.createElement("div");
+      newex.classList.add("tt");
+      newex.id = "pile-ex-" + ind;
+      if (ind == 0) newex.style.top = "125px";
+      else newex.style.bottom = "125px";
+      let extt = document.createElement("span");
+      extt.classList.add("tx");
+      extt.id = "extt-" + ind;
+      let extxt = document.createElement("span");
+      extxt.id = "extxt-" + ind;
+      newex.appendChild(extxt);
+      newex.appendChild(extt);
+      getId("piles").appendChild(newex);
+    }
+    let ex = getId("pile-ex-" + ind);
+    let extxt = getId("extxt-" + ind);
+    let extt = getId("extt-" + ind);
+    if (p.zones.exile.length) {
+      let card = p.zones.exile[p.zones.exile.length - 1];
+      extt.innerHTML = card.getTooltip(textAsHTML) + `<hline></hline>Click to toggle exile pile (${p.zones.exile.length} cards)`;
+      extxt.textContent = card.name;
+      let bgc = card.colors.map(x => (
+        x == "white" ? "silver" :
+          x == "blue" ? "cyan" :
+            x == "black" ? "#666" :
+              x == "red" ? "firebrick" :
+                x == "green" ? "lime" : "white"
+      ));
+      let bg = bgc.length == 1 ? bgc[0] : bgc.length ? "linear-gradient(" + bgc.join(", ") + ")" : "white";
+      ex.style.background = bg;
+    } else {
+      ex.style.background = "rgba(255, 255, 255, 0.3)";
+      extxt.textContent = "Exile";
+      extt.textContent = "Exile pile (empty)";
+    }
+
+    let expand = (pile: "gy" | "ex") => function (e) {
+      let pv = getId("pileviewer");
+      let cards = pile == "gy" ? p.zones.graveyard : p.zones.exile;
+      if (pv.style.display == "block") {
+        pv.style.display = "none";
+        for (let card of cards) {
+          card.uiElement = undefined;
+        }
+      } else {
+        let name = pile == "gy" ? "Graveyard" : "Exile";
+        pv.style.display = "block";
+        getId("pv-upper").innerHTML = p.name + "'s " + name + " (" + cards.length + " cards)";
+        for (let card of cards) {
+          let tt = document.createElement("span");
+          tt.setAttribute("card_uuid", card.uuid.toString());
+          tt.innerHTML = card.name.slice(0);
+          tt.classList.add("tt", "card", "noabs");
+          let bgc = card.colors.map(x => (
+            x == "white" ? "silver" :
+              x == "blue" ? "cyan" :
+                x == "black" ? "#666" :
+                  x == "red" ? "firebrick" :
+                    x == "green" ? "lime" : "white"
+          ));
+          let bg = bgc.length == 1 ? bgc[0] : bgc.length ? "linear-gradient(" + bgc.join(", ") + ")" : "white";
+          tt.style.background = bg;
+          let selected = selection.filter(x => x instanceof PermanentSelection && card instanceof PermanentCard && x.item == card.representedPermanent).length;
+          if (selected) {
+            tt.classList.add("selected");
+          }
+          let tx = document.createElement("span");
+          tx.innerHTML = card.getTooltip(textAsHTML);
+          tx.classList.add("tx");
+          tt.appendChild(tx);
+          tt.onclick = function (e) {
+            if (TurnManager.ongoingSelection) {
+              let player = TurnManager.selectingPlayer;
+              if (selection.map(x => x.item).includes(card)) {
+                selection.splice(selection.map(x => x.item).indexOf(card), 1);
+              } else {
+                if (player.selectionData.limitOne) selection = [];
+                selection.push(new CardSelection(card));
+              }
+              updateSelection(player);
+            }
+          }
+          getId("pv-inner").appendChild(tt);
+          card.uiElement = tt;
+        }
+      }
+    }
+    gy.onclick = expand("gy");
+    ex.onclick = expand("ex");
+  }
   mouse();
 }
 
@@ -284,6 +412,13 @@ class PlayerSelection extends Selection {
   }
 }
 
+class CardSelection extends Selection {
+  declare item: Card;
+  constructor(card: Card) {
+    super(card);
+  }
+}
+
 let selection: Selection[] = [];
 
 function updateSelection(player: Player) {
@@ -304,6 +439,12 @@ function updateSelection(player: Player) {
     if (!selection.filter(x => x instanceof PlayerSelection).map(x => (x as PlayerSelection).item).includes(i)) {
       i.uiElement.classList.remove("selected");
     }
+    for(let c of i.zones.graveyard) {
+      c.uiElement?.classList.remove("selected");
+    }
+    for(let c of i.zones.exile) {
+      c.uiElement?.classList.remove("selected");
+    }
   }
   // ADD the selected class to the selected elements
   for (let i of selection) {
@@ -311,6 +452,8 @@ function updateSelection(player: Player) {
       i.item.representedCard.uiElement.classList.add("selected");
     } else if (i instanceof PlayerSelection) {
       i.item.uiElement.classList.add("selected");
+    } else if (i instanceof CardSelection) {
+      i.item.uiElement?.classList.add("selected");
     }
   }
 }

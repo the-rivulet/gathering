@@ -30,6 +30,16 @@ export abstract class Card {
     this.manaCost = mana;
     if (this.manaCost) this.manaCost.card = this;
   }
+  getTooltip(textAsHTML: (text: string) => string, pow = true) {
+    let t = `
+    ${this.manaCost ? "(" + this.manaCost.asHTML + ") " : ""}${this.name}<br/>
+      ${this.supertypes.join(" ")} ${this.majorTypes.join(" ")}${this.subtypes.length ? " - " : ""}${this.subtypes.join(" ")}<br/>
+      ${textAsHTML(this.text.replaceAll("{CARDNAME", this.name))}`;
+    if (this instanceof CreatureCard && pow) {
+      t += `<br/>${this.power}/${this.toughness}`;
+    }
+    return t;
+  }
   hasAbilityMarker(a: number) {
     return this.text.includes(`{A${a}}`) && this.text.includes(`{EC${a}}`) && this.text.includes(`{EA${a}}`);
   }
@@ -109,12 +119,12 @@ export class SpellCard extends Card {
     this.basePossible = possible;
   }
   possible(self: SpellCard, field: Permanent[]): boolean {
-    return ApplyHooks(x => x instanceof HasValidTargetsHook, function(that: SpellCard, field: Permanent[]) {
+    return ApplyHooks(x => x instanceof HasValidTargetsHook, function (that: SpellCard, field: Permanent[]) {
       return that.basePossible(that, field);
     }, self, field);
   }
   validate(self: SpellCard, targets: any[]): boolean {
-    return ApplyHooks(x => x instanceof CheckTargetsHook, function(that: SpellCard, targets: any[]) {
+    return ApplyHooks(x => x instanceof CheckTargetsHook, function (that: SpellCard, targets: any[]) {
       return that.baseValidate(targets);
     }, self, targets);
   }
@@ -170,12 +180,12 @@ export class AuraCard extends PermanentCard {
     return [...field, ...TurnManager.playerList].filter(x => this.validate(this, x)).length > 0;
   }
   possible(self: AuraCard, field: Permanent[]): boolean {
-    return ApplyHooks(x => x instanceof HasValidTargetsHook, function(that: AuraCard, field: Permanent[]) {
+    return ApplyHooks(x => x instanceof HasValidTargetsHook, function (that: AuraCard, field: Permanent[]) {
       return that.basePossible(field);
     }, self, field);
   }
   validate(self: AuraCard, attached: Permanent | Player): boolean {
-    return ApplyHooks(x => x instanceof CheckTargetsHook, function(that: AuraCard, targets: Permanent[] | Player[]) {
+    return ApplyHooks(x => x instanceof CheckTargetsHook, function (that: AuraCard, targets: Permanent[] | Player[]) {
       return that.baseValidate(targets[0]);
     }, self, [attached]);
   }

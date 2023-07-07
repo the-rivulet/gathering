@@ -2,7 +2,7 @@
 <html>
 
 <!--
-  TODO: Resolve circular dependency problems
+  TODO: GY, exile piles
 -->
 
 <head>
@@ -33,6 +33,12 @@
     <button id="endphase" class="tt cool">><span class="tx">Advance Phase</span></button>
   </div>
   <button id="confirm" class="cool" style="display: none;">Confirm</button>
+
+  <div id="pileviewer" style="display:none;">
+    <div id="pv-upper"></div>
+    <div id="pv-inner"></div>
+  </div>
+  <div id="piles"></div>
 
   <script type="module" src="./scripts/ability.js"></script>
   <script type="module" src="./scripts/card.js"></script>
