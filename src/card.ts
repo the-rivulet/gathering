@@ -19,6 +19,7 @@ export abstract class Card {
   zone?: Zone;
   owner?: Player;
   uiElement?: HTMLSpanElement;
+  click?: () => void;
   constructor(name: string, types: string[], text = '', mana?: ManaCost) {
     this.name = name;
     this.types = types;
@@ -71,6 +72,9 @@ export abstract class Card {
       (auto || TurnManager.step == Step.precombat_main || TurnManager.step == Step.postcombat_main) &&
       (auto || free || by.landPlays)
     )
+  }
+  play() {
+    this.owner?.play(this);
   }
   destroy() {
     if (!this.owner) return;

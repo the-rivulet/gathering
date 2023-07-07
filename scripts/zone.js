@@ -16,4 +16,7 @@ export class ZoneManager {
     exile = [];
     battlefield = [];
     limbo = [];
+    get all() {
+        return [...this.battlefield, ...this.exile, ...this.graveyard, ...this.hand, ...this.library, ...this.limbo];
+    }
 }

@@ -35,6 +35,13 @@ function mouse(e) {
     }
 }
 document.onmousemove = e => mouse(e);
+function getHoveredUUID() {
+    let tip = Array.from(document.getElementsByClassName("tt")).filter(x => x instanceof HTMLElement && Array.from(x.children).filter(y => y.classList.contains("tx") && y.checkVisibility()).length > 0)[0];
+    if (!tip)
+        return null;
+    else
+        return tip.getAttribute("card_uuid");
+}
 function renderRow(cards, offset, valids = []) {
     for (let card of cards) {
         let i = cards.indexOf(card);
@@ -140,7 +147,7 @@ function renderRow(cards, offset, valids = []) {
             }
         }
         // Click to play it or activate it
-        tt.onclick = function (e) {
+        let onclick = function () {
             if (TurnManager.ongoingSelection) {
                 let player = TurnManager.selectingPlayer;
                 if (card instanceof PermanentCard && card.representedPermanent) {
@@ -156,7 +163,7 @@ function renderRow(cards, offset, valids = []) {
                 updateSelection(player);
             }
             else if (card.zone == "hand")
-                card.owner.play(card);
+                card.play();
             else if (card.zone == "battlefield" && card instanceof PermanentCard && card.representedPermanent) {
                 let c = card.representedPermanent;
                 let canAttack = false, canBlock = false, attacking = false, blocking = [];
@@ -193,6 +200,8 @@ function renderRow(cards, offset, valids = []) {
             renderBattlefield();
             renderStack();
         };
+        card.click = onclick;
+        tt.onclick = onclick;
         // Append
         getId("field").appendChild(tt);
         card.uiElement = tt;
@@ -596,6 +605,43 @@ function endTurn() {
     renderBattlefield();
     renderStack();
 }
+// KEYBINDS
+document.onkeydown = function (e) {
+    let k = e.key;
+    let card = TurnManager.playerList.map(x => x.zones.all).flat().filter(x => x.uuid.toString() == getHoveredUUID())[0];
+    if (k == "e") {
+        endTurn();
+    }
+    else if (k == "n") {
+        endPhase();
+    }
+    else if (k == "s") {
+        passPriority();
+    }
+    else if (parseInt(k) && parseInt(k) >= 1 && parseInt(k) <= 9) {
+        if (card) {
+            if (card.zone == Zone.battlefield && card instanceof PermanentCard) {
+                let a = card.representedPermanent.abilities.filter(x => x instanceof ActivatedAbility)[parseInt(k) - 1];
+                if (a.activate)
+                    a.activate(card.representedPermanent);
+            }
+        }
+        else if (TurnManager.currentPlayer.zones.hand.length >= parseInt(k)) {
+            TurnManager.currentPlayer.zones.hand[parseInt(k) - 1].play();
+        }
+    }
+    else if (k == " ") {
+        if (card && card.click) {
+            card.click();
+        }
+        else if (TurnManager.currentPlayer.zones.battlefield.length > 0) {
+            let c = TurnManager.currentPlayer.zones.battlefield[0];
+            if (c.click)
+                c.click();
+        }
+        e.preventDefault();
+    }
+};
 export let UI = {
     getId: getId,
     textAsHTML: textAsHTML,

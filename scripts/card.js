@@ -14,6 +14,7 @@ export class Card {
     zone;
     owner;
     uiElement;
+    click;
     constructor(name, types, text = '', mana) {
         this.name = name;
         this.types = types;
@@ -65,6 +66,9 @@ export class Card {
             this.types.includes("Land") &&
             (auto || TurnManager.step == Step.precombat_main || TurnManager.step == Step.postcombat_main) &&
             (auto || free || by.landPlays));
+    }
+    play() {
+        this.owner?.play(this);
     }
     destroy() {
         if (!this.owner)

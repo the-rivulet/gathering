@@ -38,6 +38,11 @@ function mouse(e?: any) {
   }
 }
 document.onmousemove = e => mouse(e);
+function getHoveredUUID() {
+  let tip = Array.from(document.getElementsByClassName("tt")).filter(x => x instanceof HTMLElement && Array.from(x.children).filter(y => y.classList.contains("tx") && y.checkVisibility()).length > 0)[0] as HTMLElement;
+  if(!tip) return null;
+  else return tip.getAttribute("card_uuid");
+}
 
 function renderRow(cards: Card[], offset: number, valids: Card[] = []) {
   for (let card of cards) {
@@ -131,7 +136,7 @@ function renderRow(cards: Card[], offset: number, valids: Card[] = []) {
       }
     }
     // Click to play it or activate it
-    tt.onclick = function (e) {
+    let onclick = function () {
       if (TurnManager.ongoingSelection) {
         let player = TurnManager.selectingPlayer;
         if (card instanceof PermanentCard && card.representedPermanent) {
@@ -144,7 +149,7 @@ function renderRow(cards: Card[], offset: number, valids: Card[] = []) {
         }
         updateSelection(player);
       }
-      else if (card.zone == "hand") card.owner.play(card);
+      else if (card.zone == "hand") card.play();
       else if (card.zone == "battlefield" && card instanceof PermanentCard && card.representedPermanent) {
         let c = card.representedPermanent;
         let canAttack = false, canBlock = false, attacking = false, blocking: Creature[] = [];
@@ -177,13 +182,14 @@ function renderRow(cards: Card[], offset: number, valids: Card[] = []) {
         if (!canAttack && !canBlock && !attacking && !blocking.length && c.abilities.filter(x => x instanceof ActivatedAbility).length) {
           let a = c.abilities.filter(x => x instanceof ActivatedAbility)[0] as ActivatedAbility;
           if (a.activate) a.activate(c);
-
         }
       }
       // This will (probably) be needed, why not?
       renderBattlefield();
       renderStack();
     }
+    card.click = onclick;
+    tt.onclick = onclick;
     // Append
     getId("field").appendChild(tt);
     card.uiElement = tt;
@@ -582,6 +588,36 @@ function endTurn() {
   TurnManager.advanceIfReady();
   renderBattlefield();
   renderStack();
+}
+
+// KEYBINDS
+document.onkeydown = function(e) {
+  let k = e.key;
+  let card = TurnManager.playerList.map(x => x.zones.all).flat().filter(x => x.uuid.toString() == getHoveredUUID())[0];
+  if(k == "e") {
+    endTurn();
+  } else if(k == "n") {
+    endPhase();
+  } else if(k == "s") {
+    passPriority();
+  } else if(parseInt(k) && parseInt(k) >= 1 && parseInt(k) <= 9) {
+    if(card) {
+      if(card.zone == Zone.battlefield && card instanceof PermanentCard) {
+        let a = card.representedPermanent.abilities.filter(x => x instanceof ActivatedAbility)[parseInt(k) - 1] as ActivatedAbility;
+        if(a.activate) a.activate(card.representedPermanent);
+      }
+    } else if(TurnManager.currentPlayer.zones.hand.length >= parseInt(k)) {
+      TurnManager.currentPlayer.zones.hand[parseInt(k) - 1].play();
+    }
+  } else if (k == " ") {
+    if(card && card.click) {
+      card.click();
+    } else if(TurnManager.currentPlayer.zones.battlefield.length > 0) {
+      let c = TurnManager.currentPlayer.zones.battlefield[0];
+      if(c.click) c.click();
+    }
+    e.preventDefault();
+  }
 }
 
 export let UI = {
