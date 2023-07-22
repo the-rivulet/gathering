@@ -8,6 +8,5 @@ export function UpdateGlobals(bf = [], tm, sm) {
 }
 export let Settings = {
     slugcatMana: true,
-    highestSymbol: 6,
     maxRepeats: 100 // number   The max number of times the stack can be repeatedly resolved.
 };

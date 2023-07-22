@@ -1,6 +1,6 @@
 import type { Ability } from "./ability.js";
 import type { Permanent } from "./permanent.js";
-import { Mana } from "./mana.js";
+import { SimpleManaObject, ManaPool } from "./mana.js";
 import { Card, PermanentCard } from "./card.js";
 import { StackEffect } from "./stack.js";
 import { StackManager } from "./globals.js";
@@ -8,56 +8,19 @@ import { StackManager } from "./globals.js";
 export abstract class Effect {
   // A common parent for the different effect types.
   abstract resolve(card: Permanent): boolean | Promise<boolean>;
-  manaEffect = false;
   queue(card: Permanent) {
     StackManager.add(new StackEffect(this, card));
   }
 }
 
-/**
- * Use a color starting with 'any' to have the controller choose a color.
- * Ex: {any1: 1, any2: 1} would add two mana of any colors.
- */
 export class AddManaEffect extends Effect {
-  manaEffect = true;
-  mana = new Mana();
-  constructor(mana?: Mana | object) {
+  mana: ManaPool;
+  constructor(mana: SimpleManaObject | SimpleManaObject[] | ManaPool = {}) {
     super(); // Pointless lol
-    if (mana instanceof Mana) this.mana = mana;
-    else if (typeof mana == 'object') this.mana = new Mana(mana);
+    this.mana = mana instanceof ManaPool ? mana : new ManaPool(mana);
   }
   resolve(card: Permanent) {
-    let colorList = ["white", "blue", "black", "red", "green"];
-    let mana = this.mana;
-    let anys = Object.keys(this.mana.colors).filter(x => x.startsWith("any"));
-    let func: any[];
-    let vals = [];
-    for (let i = 0; i < anys.length; i++) {
-      let name = anys[i];
-      let val: number = this.mana.colors[name];
-      vals.push(val);
-      let curInd = func ? func.length - 1 : -1;
-      if (curInd >= 0) {
-        func.push((x) => {
-          card.controller.getColor("Choose a color to add " + vals[x] + " of", result => {
-            let col = colorList[result[0]];
-            mana.add(new Mana({ [col]: vals[x] }));
-            func[curInd](x - 1);
-          })
-        });
-      } else {
-        func = [(x) => {
-          card.controller.getColor("Choose a color to add " + vals[x] + " of", result => {
-            let col = colorList[result[0]];
-            mana.add(new Mana({ [col]: vals[x] }));
-            this.mana.symbols = this.mana.symbols.filter(x => !x.color.startsWith("any"));
-            card.controller.manaPool.add(mana);
-          });
-        }];
-      }
-    }
-    if (func) func[func.length - 1](func.length - 1);
-    else card.controller.manaPool.add(mana);
+    card.controller.manaPool.add(this.mana);
     return true;
   }
 }

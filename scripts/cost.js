@@ -2,33 +2,29 @@ import { Permanent, Creature } from "./permanent.js";
 import { Battlefield } from "./globals.js";
 export class Cost {
 }
-export class AsyncCost extends Cost {
+class TargetedCost {
 }
-class ComplexCost extends Cost {
+class MultipleCost extends Cost {
     costs;
     constructor(costs) { super(); this.costs = costs; }
     pay(card, spend = true) {
-        for (let i of this.costs) {
-            if (!i.pay(card, false))
-                return false;
-        }
+        let payment = this.costs.map(x => x.pay(card, false));
+        if (payment.filter(x => !x).length > 0)
+            return false;
         if (!spend)
             return true;
-        for (let i of this.costs) {
+        for (let i of this.costs)
             i.pay(card, true);
-        }
         return true;
     }
     payPlayer(player, spend = true) {
-        for (let i of this.costs) {
-            if (!i.payPlayer(player, false))
-                return false;
-        }
+        let payment = this.costs.map(x => x.payPlayer(player, false));
+        if (payment.filter(x => !x).length > 0)
+            return false;
         if (!spend)
             return true;
-        for (let i of this.costs) {
+        for (let i of this.costs)
             i.payPlayer(player, true);
-        }
         return true;
     }
 }
@@ -52,11 +48,10 @@ export class TapCost extends Cost {
     }
 }
 class LifeCost extends Cost {
-    life = 1;
-    constructor(life) {
+    life;
+    constructor(life = 1) {
         super();
-        if (life)
-            this.life = life;
+        this.life = life;
     }
     pay(card, spend = true) {
         if (card.controller.lifeTotal <= this.life)
@@ -73,7 +68,7 @@ class LifeCost extends Cost {
         return true;
     }
 }
-class SacrificeTargetsCost extends AsyncCost {
+class SacrificeTargetsCost extends TargetedCost {
     validate;
     canPay;
     constructor(validate, canPay) {
@@ -81,14 +76,10 @@ class SacrificeTargetsCost extends AsyncCost {
         this.validate = validate;
         this.canPay = canPay;
     }
-    async pay(card, spend = true) {
-        if (!this.canPay(Battlefield.filter(x => x.controller == card.controller), card))
-            return false;
-        if (spend) {
-            card.controller.selectTargets(card.representedCard, x => !x.filter(y => !(y instanceof Permanent) || y.controller != card.controller).length && this.validate(x, card), () => this.canPay(Battlefield.filter(x => x.controller == card.controller), card), "Select something to sacrifice", result => {
-                for (let i of result)
-                    i.sacrifice();
-            });
+    pay(card, targets) {
+        for (let i of targets) {
+            if (i instanceof Permanent)
+                i.sacrifice();
         }
         return true;
     }
@@ -101,6 +92,21 @@ class SacrificeTargetsCost extends AsyncCost {
                     i.sacrifice();
             });
         }
+        return true;
+    }
+}
+class SacrificeCost extends Cost {
+    getTargets;
+    constructor(getTargets) {
+        super();
+        this.getTargets = getTargets;
+    }
+    pay(card, spend = true) {
+        this.getTargets(card).forEach(x => x.sacrifice());
+        return true;
+    }
+    payPlayer(player, spend) {
+        this.getTargets(player).forEach(x => x.sacrifice());
         return true;
     }
 }

@@ -1,5 +1,3 @@
-import { StackActivation } from "./stack.js";
-import { StackManager } from "./globals.js";
 export class Ability {
 }
 export class ComputedAbility extends Ability {
@@ -10,30 +8,40 @@ export class ComputedAbility extends Ability {
     }
 }
 export class ActivatedAbility extends Ability {
-    baseCost;
+}
+export class SimpleActivatedAbility extends ActivatedAbility {
+    cost;
     effect;
-    constructor(cost, effect) {
+    manaAbility;
+    constructor(cost, effect, isManaAbility = false) {
         super(); // Pointless lol
-        this.baseCost = cost;
-        this.effect = Array.isArray(effect) ? effect : [effect];
-    }
-    get manaAbility() {
-        return this.effect.filter(x => x.manaEffect).length == this.effect.length;
-    }
-    getCost(me) {
-        return this.baseCost;
-        // For hooks.
+        this.cost = cost;
+        this.effect = effect;
+        this.manaAbility = isManaAbility;
     }
     activate(card) {
         //if (Battlefield.filter(x => x.abilities.filter(y => y instanceof PreventActivationAbility && y.req(x, card, this)).length).length) return false;
-        if (!this.getCost(card).pay(card, true))
+        if (!this.cost.pay(card, true))
             return false;
-        if (this.manaAbility) {
-            this.effect.forEach(i => i.resolve(card)); // If mana ability, no need to stack it
-        }
-        else
-            StackManager.add(new StackActivation(this, card));
+        this.effect(card);
         return true;
+    }
+}
+export class TargetedActivatedAbility extends ActivatedAbility {
+    validate;
+    possible;
+    effect;
+    limitOne;
+    constructor(validate, possible, effect, limitOne = false) {
+        super();
+        this.validate = validate;
+        this.possible = possible;
+        this.effect = effect;
+        this.limitOne = limitOne;
+    }
+    ;
+    activate(card) {
+        return card.controller.selectTargets(undefined, this.validate(card), this.possible(card), "Select some targets", result => this.effect(card, result), this.limitOne);
     }
 }
 // This should use hooking

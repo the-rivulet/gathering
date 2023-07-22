@@ -1,5 +1,5 @@
 import { Card, PermanentCard, CreatureCard, AuraCard, SpellCard } from "./card.js";
-import { Mana } from "./mana.js";
+import { ManaPool, ManaObject, ManaPoolPart, SimpleManaObject } from "./mana.js";
 import { Creature, Permanent } from "./permanent.js";
 import { Battlefield, TurnManager, StackManager } from "./globals.js";
 import { StackCard } from "./stack.js";
@@ -8,7 +8,6 @@ import { TapCost } from "./cost.js";
 import { ZoneManager, Zone } from "./zone.js";
 import { Step } from "./turn.js";
 import { UI } from "./ui.js";
-import { AddManaEffect } from "./effect.js";
 
 export class SelectionData {
   card?: Card;
@@ -40,7 +39,7 @@ export class SelectionData {
 export class Player {
   uuid = Math.random();
   name: string;
-  manaPool = new Mana();
+  manaPool: ManaPool = new ManaPool();
   deck: Card[] = [];
   zones = new ZoneManager();
   landPlays = 1;
@@ -90,10 +89,14 @@ export class Player {
   get uiElement() {
     return UI.getId("playerinfo" + TurnManager.playerList.indexOf(this));
   }
-  selectTargets(card: Card = undefined, validate: (t: any[]) => boolean, possible: () => boolean, message: string, continuation: (result: any) => any, limitOne = false) {
-    if (!possible()) return;
-    this.selectionData = new SelectionData(card, validate, possible, message, continuation, limitOne);
+  /**
+   * feel free to pass `undefined` to `casting` if you aren't casting a card, idk why I put it as the first argument lol
+   */
+  selectTargets(casting: Card, validate: (t: any[]) => boolean, possible: () => boolean, message: string, continuation: (result: any) => any, limitOne = false) {
+    if (!possible()) return false;
+    this.selectionData = new SelectionData(casting, validate, possible, message, continuation, limitOne);
     UI.selectTargets(this);
+    return true;
   }
   playLand(card: PermanentCard, free = false, auto = false) {
     if (!card.landPlayable(this, auto, free)) return false;
@@ -103,7 +106,7 @@ export class Player {
   }
   castPermanent(card: PermanentCard, free = false, auto = false) {
     if (!card.castable(this, auto, free)) return false;
-    if (!free) this.manaPool.pay(card);
+    if (!free) this.manaPool.pay(card, this);
     //TriggerEffects(Events.onCardCast, { player: this, card: card });
     StackManager.add(new StackCard(card));
     this.moveCardTo(card, Zone.stack);
@@ -123,7 +126,7 @@ export class Player {
       UI.renderStack();
       return true;
     }
-    if (!free) this.manaPool.pay(card);
+    if (!free) this.manaPool.pay(card, this);
     this.moveCardTo(card, Zone.stack);
     if (forceTargets) return doIt(forceTargets);
     else {
@@ -149,7 +152,7 @@ export class Player {
       UI.renderStack();
       return true;
     }
-    if (!free) this.manaPool.pay(card);
+    if (!free) this.manaPool.pay(card, this);
     this.moveCardTo(card, Zone.stack);
     if (forceTarget) return doIt([forceTarget]);
     else {
@@ -233,15 +236,19 @@ export class Player {
   getConfirmation(message: string, continuation: (result: boolean) => void) {
     UI.chooseOptions(this, ["Yes", "No"], 1, message, result => continuation(result[0] == 0));
   }
-  /**
-   * 0 = white, 1 = blue, 2 = black, 3 = red, 4 = green
-   */
-  getColor(message: string, continuation: (result: number) => void) {
+  getColor(message: string, continuation: (result: "white" | "blue" | "black" | "red" | "green") => void) {
     let colorList = ["white", "blue", "black", "red", "green"];
-    UI.chooseOptions(this, colorList.map(x => new Mana({[x]: 1}).asHTML + " " + x), 1, message, result => continuation(result[0]));
+    UI.chooseOptions(this, colorList.map(x => new ManaPool({ [x]: 1 }).asHTML + " " + x), 1, message, result => continuation(colorList[result[0]] as "white" | "blue" | "black" | "red" | "green"));
   }
-  chooseOptions(descriptions: string[], howMany = 1, message: string, continuation: (result: number[]) => void) {
+  chooseOptions(descriptions: string[], howMany = 1, message: string, continuation: (choices: number[]) => void) {
     UI.chooseOptions(this, descriptions, howMany, message, continuation);
+  }
+  /**
+   * You probably don't need to call this directly, as `ManaPool.pay` will do it for you.
+   * Also, keep in mind that this function does not drain the selected mana automatically.
+   */
+  payComplexCosts(mana: ManaPool, generic: number, choices: SimpleManaObject[][], continuation: (choices: SimpleManaObject, forGeneric: SimpleManaObject) => void) {
+    UI.payComplexCosts(this, mana, generic, choices, continuation);
   }
 }
 

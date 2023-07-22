@@ -1,7 +1,6 @@
 import type { Permanent } from "./permanent.js";
 import type { Cost } from "./cost.js";
 import type { Effect } from "./effect.js";
-import { StackActivation } from "./stack.js";
 import { StackManager } from "./globals.js";
 
 export abstract class Ability {
@@ -17,29 +16,42 @@ export class ComputedAbility extends Ability {
   }
 }
 
-export class ActivatedAbility extends Ability {
-  baseCost: Cost;
-  effect: Effect[];
-  constructor(cost: Cost, effect: Effect[] | Effect) {
+export abstract class ActivatedAbility extends Ability {
+  abstract activate(card: Permanent): boolean;
+}
+
+export class SimpleActivatedAbility extends ActivatedAbility {
+  cost: Cost;
+  effect: (card: Permanent) => void;
+  manaAbility: boolean;
+  constructor(cost: Cost, effect: (card: Permanent) => void, isManaAbility = false) {
     super(); // Pointless lol
-    this.baseCost = cost;
-    this.effect = Array.isArray(effect) ? effect : [effect];
-  }
-  get manaAbility() {
-    return this.effect.filter(x => x.manaEffect).length == this.effect.length;
-  }
-  getCost(me: Permanent) {
-    return this.baseCost;
-    // For hooks.
+    this.cost = cost;
+    this.effect = effect;
+    this.manaAbility = isManaAbility;
   }
   activate(card: Permanent) {
     //if (Battlefield.filter(x => x.abilities.filter(y => y instanceof PreventActivationAbility && y.req(x, card, this)).length).length) return false;
-    if (!this.getCost(card).pay(card, true)) return false;
-    if (this.manaAbility) {
-      this.effect.forEach(i => i.resolve(card)); // If mana ability, no need to stack it
-    }
-    else StackManager.add(new StackActivation(this, card));
+    if (!this.cost.pay(card, true)) return false;
+    this.effect(card);
     return true;
+  }
+}
+
+export class TargetedActivatedAbility extends ActivatedAbility {
+  validate: (card: Permanent) => (targets: any[]) => boolean;
+  possible: (card: Permanent) => () => boolean;
+  effect: (card: Permanent, targets: any[]) => void;
+  limitOne: boolean;
+  constructor(validate: (card: Permanent) => (targets: any[]) => boolean, possible: (card: Permanent) => () => boolean, effect: (card: Permanent, targets: any[]) => void, limitOne = false) {
+    super();
+    this.validate = validate;
+    this.possible = possible;
+    this.effect = effect;
+    this.limitOne = limitOne;
+  };
+  activate(card: Permanent) {
+    return card.controller.selectTargets(undefined, this.validate(card), this.possible(card), "Select some targets", result => this.effect(card, result), this.limitOne);
   }
 }
 

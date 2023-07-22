@@ -33,7 +33,7 @@ export abstract class Card {
   }
   getTooltip(textAsHTML: (text: string) => string, pow = true) {
     let t = `
-    ${this.manaCost ? "(" + this.manaCost.asHTML + ") " : ""}${this.name}<br/>
+    ${this.manaCost ? "(" + this.manaCost.asHTML() + ") " : ""}${this.name}<br/>
       ${this.supertypes.join(" ")} ${this.majorTypes.join(" ")}${this.subtypes.length ? " - " : ""}${this.subtypes.join(" ")}<br/>
       ${textAsHTML(this.text.replaceAll("{CARDNAME", this.name))}`;
     if (this instanceof CreatureCard && pow) {
@@ -52,7 +52,7 @@ export abstract class Card {
   }
   get colors() {
     if (!this.manaCost) return [];
-    return Object.keys(this.manaCost.mana.colors);
+    return Object.keys(this.manaCost.simplified);
   }
   castable(by: Player, auto = false, free = false) {
     return (
@@ -61,7 +61,7 @@ export abstract class Card {
       (auto || (this.owner && this.owner == by)) &&
       (auto || this.types.includes("Instant") || this.owner == TurnManager.currentPlayer) &&
       (auto || this.types.includes("Instant") || TurnManager.step == Step.precombat_main || TurnManager.step == Step.postcombat_main) &&
-      (free || by.manaPool.pay(this, false))
+      (free || by.manaPool.pay(this, by, false))
     );
   }
   landPlayable(by: Player, auto = false, free = false) {

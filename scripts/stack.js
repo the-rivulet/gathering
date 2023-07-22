@@ -15,16 +15,6 @@ export class StackEffect {
         this.permanent = perm;
     }
 }
-export class StackActivation {
-    abil;
-    permanent;
-    targets;
-    constructor(abil, permanent, forceTargets) {
-        this.abil = abil;
-        this.permanent = permanent;
-        this.targets = forceTargets;
-    }
-}
 export class StackManagerClass {
     stack = [];
     constructor() { }
@@ -41,9 +31,6 @@ export class StackManagerClass {
         }
         else if (next instanceof StackEffect) {
             await next.effect.resolve(next.permanent);
-        }
-        else {
-            next.abil.effect.forEach(i => i.resolve(next.permanent));
         }
     }
     get ready() {

@@ -4,36 +4,29 @@ import { Battlefield } from "./globals.js";
 
 export abstract class Cost {
   // A common parent for the different cost types.
-  abstract pay(card: Permanent, spend: boolean): boolean | Promise<boolean>;
-  abstract payPlayer(player: Player, spend: boolean): boolean | Promise<boolean>;
+  abstract pay(card: Permanent, spend: boolean): boolean;
+  abstract payPlayer(player: Player, spend: boolean): boolean;
 }
 
-export abstract class AsyncCost extends Cost {
-  abstract pay(card: Permanent, spend: boolean): Promise<boolean>;
-  abstract payPlayer(player: Player, spend: boolean): Promise<boolean>;
+abstract class TargetedCost {
+  abstract pay(card: Permanent, targets: any[]): boolean;
 }
 
-class ComplexCost extends Cost {
+class MultipleCost extends Cost {
   costs: Cost[];
-  constructor(costs: Cost[]) {super(); this.costs = costs;}
+  constructor(costs: Cost[]) { super(); this.costs = costs; }
   pay(card: Permanent, spend = true) {
-    for(let i of this.costs) {
-      if(!i.pay(card, false)) return false;
-    }
-    if(!spend) return true;
-    for(let i of this.costs) {
-      i.pay(card, true);
-    }
+    let payment = this.costs.map(x => x.pay(card, false));
+    if (payment.filter(x => !x).length > 0) return false;
+    if (!spend) return true;
+    for (let i of this.costs) i.pay(card, true);
     return true;
   }
   payPlayer(player: Player, spend = true) {
-    for(let i of this.costs) {
-      if(!i.payPlayer(player, false)) return false;
-    }
-    if(!spend) return true;
-    for(let i of this.costs) {
-      i.payPlayer(player, true);
-    }
+    let payment = this.costs.map(x => x.payPlayer(player, false));
+    if (payment.filter(x => !x).length > 0) return false;
+    if (!spend) return true;
+    for (let i of this.costs) i.payPlayer(player, true);
     return true;
   }
 }
@@ -58,10 +51,10 @@ export class TapCost extends Cost {
 }
 
 class LifeCost extends Cost {
-  life = 1;
-  constructor(life?: number) {
+  life: number;
+  constructor(life = 1) {
     super();
-    if (life) this.life = life;
+    this.life = life;
   }
   pay(card: Permanent, spend = true) {
     if (card.controller.lifeTotal <= this.life) return false;
@@ -75,7 +68,7 @@ class LifeCost extends Cost {
   }
 }
 
-class SacrificeTargetsCost extends AsyncCost {
+class SacrificeTargetsCost extends TargetedCost {
   validate: (t: Permanent[], c?: Permanent) => boolean;
   canPay: (t: Permanent[], c?: Permanent) => boolean;
   constructor(validate: (t: Permanent[], c?: Permanent) => boolean, canPay: (t: Permanent[], c?: Permanent) => boolean) {
@@ -83,35 +76,41 @@ class SacrificeTargetsCost extends AsyncCost {
     this.validate = validate;
     this.canPay = canPay;
   }
-  async pay(card: Permanent, spend = true) {
-    if(!this.canPay(Battlefield.filter(x => x.controller == card.controller), card)) return false;
-    if(spend) {
-      card.controller.selectTargets(
-        card.representedCard,
-        x => !x.filter(y => !(y instanceof Permanent) || y.controller != card.controller).length && this.validate((x as Permanent[]), card),
-        () => this.canPay(Battlefield.filter(x => x.controller == card.controller), card),
-        "Select something to sacrifice",
-        result => {
-          for(let i of (result as Permanent[])) i.sacrifice();
-        }
-      );
-      
+  pay(card: Permanent, targets: any[]) {
+    for (let i of targets) {
+      if(i instanceof Permanent) i.sacrifice();
     }
     return true;
   }
   async payPlayer(player: Player, spend = true) {
-    if(!this.canPay(Battlefield.filter(x => x.controller == player))) return false;
-    if(spend) {
+    if (!this.canPay(Battlefield.filter(x => x.controller == player))) return false;
+    if (spend) {
       player.selectTargets(
         undefined,
         x => !x.filter(y => !(y instanceof Permanent) || y.controller != player).length && this.validate((x as Permanent[])),
         () => this.canPay(Battlefield.filter(x => x.controller == player)),
         "Select something to sacrifice",
         result => {
-          for(let i of (result as Permanent[])) i.sacrifice();
+          for (let i of (result as Permanent[])) i.sacrifice();
         }
       );
     }
+    return true;
+  }
+}
+
+class SacrificeCost extends Cost {
+  getTargets: (self: Permanent | Player) => Permanent[];
+  constructor(getTargets: (self: Permanent | Player) => Permanent[]) {
+    super();
+    this.getTargets = getTargets;
+  }
+  pay(card: Permanent, spend = true) {
+    this.getTargets(card).forEach(x => x.sacrifice());
+    return true;
+  }
+  payPlayer(player: Player, spend: boolean) {
+    this.getTargets(player).forEach(x => x.sacrifice());
     return true;
   }
 }
@@ -121,7 +120,7 @@ export class SacrificeSelfCost extends Cost {
     super();
   }
   pay(card: Permanent, spend = true) {
-    if(!spend) return true;
+    if (!spend) return true;
     card.sacrifice();
     return true;
   }

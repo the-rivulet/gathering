@@ -1,7 +1,6 @@
 import type { Card } from "./card.js";
 import type { Permanent } from "./permanent.js";
 import type { Effect } from "./effect.js";
-import type { ActivatedAbility } from "./ability.js";
 import { TurnManager, Settings } from "./globals.js";
 
 export class StackCard {
@@ -25,25 +24,10 @@ export class StackEffect {
   }
 }
 
-export class StackActivation {
-  abil: ActivatedAbility;
-  permanent: Permanent;
-  targets?: any[];
-  constructor(
-    abil: ActivatedAbility,
-    permanent: Permanent,
-    forceTargets?: any[]
-  ) {
-    this.abil = abil;
-    this.permanent = permanent;
-    this.targets = forceTargets;
-  }
-}
-
 export class StackManagerClass {
-  stack: (StackCard | StackEffect | StackActivation)[] = [];
+  stack: (StackCard | StackEffect)[] = [];
   constructor() { }
-  add(what: StackCard | StackEffect | StackActivation) {
+  add(what: StackCard | StackEffect) {
     this.stack.push(what);
   }
   async resolveNext() {
@@ -53,10 +37,6 @@ export class StackManagerClass {
       if (next.card.owner) next.card.owner.resolve(next.card, next.targets);
     } else if (next instanceof StackEffect) {
       await next.effect.resolve(next.permanent);
-    } else {
-      next.abil.effect.forEach(i =>
-        i.resolve((next as StackActivation).permanent)
-      );
     }
   }
   get ready() {

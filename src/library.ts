@@ -1,8 +1,8 @@
 import { PermanentCard, CreatureCard, AuraCard, SpellCard } from "./card.js";
-import { ActivatedAbility } from "./ability.js";
+import { SimpleActivatedAbility } from "./ability.js";
 import { AddManaEffect, CreateTokenEffect, AddCounterOnSelfEffect, ApplyAbilityOnSelfEffect } from "./effect.js";
 import { SacrificeSelfCost, TapCost } from "./cost.js";
-import { Mana, ManaCost } from "./mana.js";
+import { ManaCost, ManaPool } from "./mana.js";
 import { PlayCardHook, BeginStepHook, StatsHook, ProtectionAbility } from "./hook.js";
 import { Creature } from "./permanent.js";
 import { Battlefield } from "./globals.js";
@@ -11,13 +11,13 @@ import { Step } from "./turn.js";
 class TreasureTokenCard extends PermanentCard {
   constructor() {
     super(
-      'Treasure',
+      'Treasure Token',
       ['Artifact', 'Token', 'Treasure'],
       'Sacrifice {CARDNAME}: Add one mana of any color to your mana pool.',
       undefined,
-      new ActivatedAbility(
+      new SimpleActivatedAbility(
         new SacrificeSelfCost(),
-        new AddManaEffect({ any: 1 })
+        card => card.controller.getColor("Choose a color", result => new AddManaEffect({[result]: 1}).resolve(card))
       )
     );
   }
@@ -31,7 +31,7 @@ export class ForestCard extends PermanentCard {
       ['Land', 'Basic', 'Forest'],
       '{A1}{T}{EC1}Add {G}.{EA1}',
       undefined,
-      new ActivatedAbility(new TapCost(), new AddManaEffect({ green: 1 }))
+      new SimpleActivatedAbility(new TapCost(), card => new AddManaEffect({ green: 1 }).resolve(card))
     );
   }
   makeEquivalentCopy = () => new ForestCard();
@@ -44,8 +44,9 @@ export class LlanowarElvesCard extends CreatureCard {
       ['Creature', 'Elf', 'Druid'],
       '{A1}{T}{EC1}Add {G}.{EA1}',
       1, 1,
-      new ManaCost({ green: 1 }),
-      new ActivatedAbility(new TapCost(), new AddManaEffect({ green: 1 }))
+      //new ManaCost({ green: 1 }),
+      new ManaCost({green: 1}),
+      new SimpleActivatedAbility(new TapCost(), card => new AddManaEffect({ green: 1 }).resolve(card))
     );
   }
   makeEquivalentCopy = () => new LlanowarElvesCard();
@@ -68,28 +69,6 @@ export class GiantGrowthCard extends SpellCard {
       new ManaCost({ green: 1 })
     )
   }
-}
-
-class FerrousRokiricCard extends CreatureCard {
-  constructor() {
-    super(
-      'General Ferrous Rokiric',
-      ['Creature', 'Legendary', 'Human', 'Soldier'],
-      'Protection from monocolored. Whenever you cast a multicolored spell, create a 4/4 red and white Golem token.',
-      3, 1,
-      new ManaCost({ red: 1, white: 1, colorless: 1 }),
-      [
-        new ProtectionAbility(source => source.colors.length == 1),
-        new PlayCardHook(orig => (that, card, free, noCheck, force) => {
-          if (!(card.types.includes("Land")) && card.colors.length >= 2 && this.representedPermanent) {
-            new CreateTokenEffect(new CreatureCard("Golem Token", ["Creature", "Token", "Golem"], "", 4, 4)).resolve(this.representedPermanent);
-          }
-          return orig(that, card, free, noCheck, force);
-        }),
-      ]
-    );
-  }
-  makeEquivalentCopy = () => new FerrousRokiricCard();
 }
 
 export class ForcedAdaptationCard extends AuraCard {
@@ -124,20 +103,20 @@ class KarnLegacyReforgedCard extends CreatureCard {
         Math.max(
           ...Battlefield.filter(
             x => x.controller == card.controller && x.types.includes('Artifact')
-          ).map(x => (x.representedCard.manaCost || new ManaCost(new Mana())).mana.value)
+          ).map(x => (x.representedCard.manaCost || new ManaCost()).value)
         ),
       card =>
         Math.max(
           ...Battlefield.filter(
             x => x.controller == card.controller && x.types.includes('Artifact')
-          ).map(x => (x.representedCard.manaCost || new ManaCost(new Mana())).mana.value)
+          ).map(x => (x.representedCard.manaCost || new ManaCost()).value)
         ),
-      new ManaCost({ colorless: 5 }),
+      new ManaCost({ generic: 5 }),
       new BeginStepHook(orig => that => {
         orig(that);
         if (that.step == Step.upkeep && this.representedPermanent) {
           new AddManaEffect(
-            new Mana({ colorless: 1 }, payFor => payFor.types.includes('Artifact'), true)
+            new ManaPool({ colorless: 1, canPayFor: payFor => payFor.types.includes('Artifact'), keep: true })
           ).resolve(this.representedPermanent);
         }
       })
@@ -145,3 +124,44 @@ class KarnLegacyReforgedCard extends CreatureCard {
   }
   makeEquivalentCopy = () => new KarnLegacyReforgedCard();
 }
+
+// The boros rokiric deck
+class FigureOfDestinyCard extends CreatureCard {
+  constructor() {
+    super(
+      'Figure of Destiny',
+      ['Creature', 'Kithkin'],
+      `{R/W}: {CARDNAME} becomes a 2/2 Kithkin Spirit.
+        {R/W}{R/W}{R/W}: If {CARDNAME} is a Spirit, it becomes a 4/4 Kithkin Spirit Warrior.
+        {R/W}{R/W}{R/W}{R/W}{R/W}{R/W}: If {CARDNAME} is a Warrior, it becomes a 8/8 Kithkin Spirit Warrior Avatar with flying and first strike.`,
+      1, 1,
+      new ManaCost({choices: [[{ red: 1 }, { white: 1 }]]}),
+      [] // TODO
+    )
+  }
+  makeEquivalentCopy = () => new FigureOfDestinyCard();
+}
+
+class GeneralFerrousRokiricCard extends CreatureCard {
+  constructor() {
+    super(
+      'General Ferrous Rokiric',
+      ['Creature', 'Legendary', 'Human', 'Soldier'],
+      'Protection from monocolored. Whenever you cast a multicolored spell, create a 4/4 red and white Golem token.',
+      3, 1,
+      new ManaCost({ red: 1, white: 1, colorless: 1 }),
+      [
+        new ProtectionAbility(source => source.colors.length == 1),
+        new PlayCardHook(orig => (that, card, free, noCheck, force) => {
+          if (!(card.types.includes("Land")) && card.colors.length >= 2 && this.representedPermanent) {
+            new CreateTokenEffect(new CreatureCard("Golem Token", ["Creature", "Token", "Golem"], "", 4, 4)).resolve(this.representedPermanent);
+          }
+          return orig(that, card, free, noCheck, force);
+        }),
+      ]
+    );
+  }
+  makeEquivalentCopy = () => new GeneralFerrousRokiricCard();
+}
+
+// TODO: rest of deck

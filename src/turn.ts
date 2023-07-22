@@ -3,7 +3,6 @@ import { Battlefield, StackManager, TurnManager } from "./globals.js";
 import { Creature } from "./permanent.js";
 import { TapCost } from "./cost.js";
 import { ApplyHooks, BeginStepHook } from "./hook.js";
-import { Mana, ManaFromSymbols } from "./mana.js";
 
 export enum Step {
   untap = 100,
@@ -136,7 +135,7 @@ export class TurnManagerClass {
   advance(targetStep?: Step) {
     // Drain mana pools
     for (let p of this.playerList) {
-      p.manaPool = ManaFromSymbols(p.manaPool.symbols.filter(x => x.keep));
+      //p.manaPool = ManaFromSymbols(p.manaPool.symbols.filter(x => x.keep));
     }
     // Advance to the next step
     let nextStep = this.stepList[this.stepIndex + 1];
@@ -150,7 +149,7 @@ export class TurnManagerClass {
         (i as Creature).removeDamage();
       }
       // Begin a new turn
-      for (let p of this.playerList) p.manaPool = new Mana();
+      for (let p of this.playerList) p.manaPool.mana = p.manaPool.mana.filter(x => x.keep);
       for (let i of Battlefield.filter(x => x instanceof Creature)) {
         (i as Creature).attacking = false;
       }

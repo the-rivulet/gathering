@@ -1,11 +1,8 @@
-//import type { ActivatedAbility } from "./ability.js";
 import { Player } from "./player.js";
-import { TurnManager, UpdateGlobals } from "./globals.js";
+import { TurnManager, UpdateGlobals, Battlefield } from "./globals.js";
 import { StackManagerClass } from "./stack.js";
-import { TurnManagerClass } from "./turn.js";
+import { TurnManagerClass, Step } from "./turn.js";
 import { ForestCard, LlanowarElvesCard, ForcedAdaptationCard, GiantGrowthCard } from "./library.js";
-//import { Creature } from "./permanent.js";
-//import { Zone } from "./zone.js";
 import { UI } from "./ui.js";
 let getPlayer = () => {
     let p = new Player("unnamed", [new ForestCard(), new LlanowarElvesCard(), new ForcedAdaptationCard(), new GiantGrowthCard()]);
@@ -40,4 +37,8 @@ export function RunTests() {
     let p1 = getPlayer();
     let p2 = getPlayer();
     Initialize(p1, p2);
+    TurnManager.advance(Step.precombat_main);
+    p1.play(p1.zones.hand[0]);
+    Battlefield[0].abilities[0].activate(Battlefield[0]);
+    p1.play(p1.zones.hand[0]);
 }

@@ -1,24 +1,27 @@
-import { ActivatedAbility } from "./ability.js";
+import { ManaCost, ManaUtils } from "./mana.js";
+import { ActivatedAbility, SimpleActivatedAbility, TargetedActivatedAbility } from "./ability.js";
 import { AuraCard, PermanentCard, SpellCard, CreatureCard } from "./card.js";
 import { TurnManager, Battlefield, StackManager, Settings } from "./globals.js";
-import { StackCard, StackEffect } from "./stack.js";
+import { StackEffect } from "./stack.js";
 import { Zone } from "./zone.js";
 import { Step } from "./turn.js";
 let getId = (x) => document.getElementById(x);
 let textAsHTML = function (text) {
     let t = text
-        .replaceAll(new RegExp("{EC[0-9]+}", "g"), ": ")
-        .replaceAll(new RegExp("{E?A[0-9]+}", "g"), "")
+        .replaceAll(/{EC[0-9]+}/g, ": ")
+        .replaceAll(/{E?A[0-9]+}/g, "")
         .replaceAll("{T}", "<img src='./assets/" + (Settings.slugcatMana ? "slugcats/touchright.png" : "tap.svg") + "' class='" + (Settings.slugcatMana ? "slugcat" : "symbol") + "'>")
         .replaceAll("{Q}", "<img src='./assets/" + (Settings.slugcatMana ? "slugcats/touchleft.png" : "untap.svg") + "' class='" + (Settings.slugcatMana ? "slugcat" : "symbol") + "'>");
-    let colorList = (Settings.slugcatMana ?
-        { "G": "saint", "W": "gourmand", "U": "rivulet", "R": "hunter", "B": "nightcat" } :
-        { "G": "green", "W": "white", "U": "blue", "R": "red", "B": "black" });
-    for (let i of Object.keys(colorList)) {
-        t = t.replaceAll("{" + i + "}", "<img src='./assets/" + (Settings.slugcatMana ? "slugcats" : "mana") + "/" + colorList[i] + ".png' class='" + (Settings.slugcatMana ? "slugcat" : "symbol") + "'>");
+    let slugcatList = { "G": "saint", "W": "gourmand", "U": "rivulet", "R": "hunter", "B": "nightcat", "C": "survivor" };
+    let colorList = { "G": "green", "W": "white", "U": "blue", "R": "red", "B": "black", "C": "colorless" };
+    // TODO: do I need these UUIDs?
+    for (let i in colorList) {
+        let uuid = Math.random().toString().slice(2);
+        t = t.replaceAll("{" + i + "}", "<img id='" + uuid + "' src='./assets/" + (Settings.slugcatMana ? "slugcats" : "mana") + "/" + (Settings.slugcatMana ? slugcatList[i] : colorList[i]) + ".png' class='" + (Settings.slugcatMana ? "slugcat" : "symbol") + "'>");
     }
-    for (let i = 0; i <= Settings.highestSymbol; i++) {
-        t = t.replaceAll("{" + i + "}", "<img src='./assets/mana/" + i + ".svg' class='symbol'>");
+    for (let i = 0; i <= 15; i++) {
+        let uuid = Math.random().toString().slice(2);
+        t = t.replaceAll("{" + i + "}", "<img id='" + uuid + "' " + i + "' src='./assets/mana/" + i + ".svg' class='symbol'>");
     }
     return t;
 };
@@ -99,11 +102,11 @@ function renderRow(cards, offset, valids = []) {
                 add("This spell has no valid targets.");
             }
             else {
-                add("Click to cast this card for " + card.manaCost.asHTML + " (you have " + card.owner.manaPool.asHTML + ").");
+                add("Click to cast this card for " + card.manaCost.asHTML() + " (you have " + card.owner.manaPool.asHTML + ").");
             }
         }
         else if (card.castable(card.owner, false, true)) {
-            add("You cannot pay " + card.manaCost.asHTML + " right now (you have " + card.owner.manaPool.asHTML + ").");
+            add("You cannot pay " + card.manaCost.asHTML() + " right now (you have " + card.owner.manaPool.asHTML + ").");
         }
         else if (card.zone == Zone.hand) {
             add("This card is not playable right now.");
@@ -137,12 +140,15 @@ function renderRow(cards, offset, valids = []) {
                 }
             }
             if (!canAttack && !canBlock && !attacking && !blocking.length && c.abilities.filter(x => x instanceof ActivatedAbility).length) {
-                let a = c.abilities.filter(x => x instanceof ActivatedAbility)[0];
-                if (a.getCost(c).pay(c, false)) {
-                    add("Click to activate " + (card.hasAbilityMarker(1) ? ' " ' + textAsHTML(card.getAbilityInfo(1)) + ' "' : "this card's ability."));
-                }
-                else {
-                    add("You cannot pay " + (card.hasAbilityMarker(1) ? ('" ' + textAsHTML(card.getAbilityInfo(1, "cost") + ' " to activate " ' + card.getAbilityInfo(1, "effect") + ' "')) : "this ability's cost") + " right now.");
+                let abils = c.abilities.filter(x => x instanceof ActivatedAbility);
+                let worked = false;
+                for (let a of abils) {
+                    if ((a instanceof SimpleActivatedAbility && a.cost.pay(c, false)) || (a instanceof TargetedActivatedAbility && a.possible(card.representedPermanent))) {
+                        add((worked ? "P" : "Click or p") + "ress " + (abils.indexOf(a) + 1) + " to activate " + (card.hasAbilityMarker(1) ? ' " ' + textAsHTML(card.getAbilityInfo(1)) + ' "' : "this card's ability."));
+                    }
+                    else {
+                        add("You cannot pay " + (card.hasAbilityMarker(1) ? ('" ' + textAsHTML(card.getAbilityInfo(1, "cost") + ' " to activate " ' + card.getAbilityInfo(1, "effect") + ' "')) : "this ability's cost") + " right now.");
+                    }
                 }
             }
         }
@@ -191,9 +197,12 @@ function renderRow(cards, offset, valids = []) {
                     }
                 }
                 if (!canAttack && !canBlock && !attacking && !blocking.length && c.abilities.filter(x => x instanceof ActivatedAbility).length) {
-                    let a = c.abilities.filter(x => x instanceof ActivatedAbility)[0];
-                    if (a.activate)
-                        a.activate(c);
+                    let abils = c.abilities.filter(x => x instanceof ActivatedAbility);
+                    for (let a of abils) {
+                        if (a instanceof SimpleActivatedAbility && a.cost.pay(c, false))
+                            a.activate(c);
+                        // TODO something for TargetedActivatedAbility 
+                    }
                 }
             }
             // This will (probably) be needed, why not?
@@ -244,16 +253,16 @@ function renderBattlefield() {
             info.id = "playerinfo" + i;
             info.classList.add("playerinfo");
             if (i == 0)
-                info.style.top = "30px";
+                info.style.top = "10px";
             else
-                info.style.bottom = "30px";
+                info.style.bottom = "10px";
             document.body.appendChild(info);
         }
         let elem = getId("playerinfo" + i);
         elem.innerHTML = `
     ${p.name}<br/>
-    ${TurnManager.defendingPlayer == p && TurnManager.step == Step.declare_blockers && TurnManager.currentPlayer.attackers.length ? "(" + (p.lifeTotal - TurnManager.currentPlayer.attackers.reduce((a, b) => a + b.power, 0)) + " ← ) " : ""}${p.lifeTotal}/${p.startingLifeTotal} life
-    `;
+    ${TurnManager.defendingPlayer == p && TurnManager.step == Step.declare_blockers && TurnManager.currentPlayer.attackers.length ? "(" + (p.lifeTotal - TurnManager.currentPlayer.attackers.reduce((a, b) => a + b.power, 0)) + " ← ) " : ""}${p.lifeTotal}/${p.startingLifeTotal} life<br/>`;
+        elem.innerHTML += p.manaPool.asHTML;
         // Click on a playerinfo to add/remove
         elem.onclick = function (e) {
             if (TurnManager.ongoingSelection) {
@@ -408,11 +417,8 @@ function renderStack() {
     let s = getId("stack"), m = StackManager;
     s.innerHTML = `${TurnManager.currentPlayer.name}'s ${TurnManager.stepName} step<br/>Stack (${m.stack.length} item${m.stack.length == 1 ? "):" : m.stack.length ? "s):" : "s)"}`;
     for (let i of m.stack) {
-        s.innerHTML += "<br/>" + (i instanceof StackEffect ? "Queued effect on " + i.permanent.name :
-            i instanceof StackCard ? i.card.name +
-                (i.targets.length ? i.targets.map(x => "<br/>↳ " + x.name || typeof x) : "") :
-                "Activated ability of " + i.permanent +
-                    (i.targets.length ? i.targets.map(x => "<br/>↳ " + x.name || typeof x) : ""));
+        s.innerHTML += "<br/>" + (i instanceof StackEffect ? "Effect → " + i.permanent.name : i.card.name +
+            (i.targets.length ? i.targets.map(x => "<br/>↳ " + x.name || typeof x) : ""));
     }
     mouse();
 }
@@ -562,10 +568,9 @@ function chooseOptions(player, descriptions, howMany = 1, message, continuation)
         };
         getId("optlist").appendChild(el);
     }
-    getId("optsubmit").onclick = function (e) {
+    getId("optsubmit").onclick = function () {
         if (chosenOptions.length != howMany)
             return;
-        // Set display to none
         getId("optcontainer").style.display = "none";
         player.choosing = false;
         continuation(chosenOptions);
@@ -574,6 +579,133 @@ function chooseOptions(player, descriptions, howMany = 1, message, continuation)
         getId("endphase").style.display = "block";
         getId("pass").style.display = "block";
         chosenOptions = [];
+        renderBattlefield();
+    };
+}
+let selectedSymbols = {};
+let amountSelected = 0;
+let forGeneric = {};
+let genericsSelected = 0;
+function payComplexCosts(player, manaPool, generic, choices, continuation) {
+    getId("endturn").style.display = "none";
+    getId("endphase").style.display = "none";
+    getId("pass").style.display = "none";
+    player.choosing = true;
+    // Set up display
+    let toPay = { required: { generic: generic }, choices: choices };
+    getId("pccsymbols").innerHTML = "Cost<br/>" + new ManaCost(toPay).asHTML("clickablemana");
+    getId("pcctopay").innerHTML = "Your Mana<br/>" + manaPool.asHTML;
+    getId("pcccontainer").style.display = "block";
+    let prevGen;
+    let updateSubmitter = function () {
+        let pay = ManaUtils.simplePay(manaPool, selectedSymbols);
+        console.log("Expected " + (generic + (selectedSymbols.generic || 0) - pay.remain.simplified.generic) + " got " + genericsSelected);
+        if (pay.success && amountSelected == choices.length && genericsSelected == (generic + (selectedSymbols.generic || 0) - pay.remain.simplified.generic)) {
+            getId("pccsubmit").classList.add("submittable");
+        }
+        else {
+            getId("pccsubmit").classList.remove("submittable");
+        }
+    };
+    let updateGenerics = function () {
+        let pay = ManaUtils.simplePay(manaPool, selectedSymbols);
+        console.log(pay);
+        if (!pay.success) {
+            forGeneric = {};
+            genericsSelected = 0;
+            getId("pccgeneric").textContent = "";
+            prevGen = undefined;
+            return;
+        }
+        let gen = generic + (selectedSymbols.generic || 0) - pay.remain.simplified.generic;
+        if (gen <= 0 || Object.keys(pay.remain.simplified).filter(x => x != "generic").length <= 1) {
+            if (Object.keys(pay.remain.simplified).filter(x => x != "generic").length == 1) {
+                forGeneric = pay.remain.simplified;
+                forGeneric.generic = 0;
+            }
+            else
+                forGeneric = {};
+            genericsSelected = 0;
+            getId("pccgeneric").textContent = "";
+            prevGen = undefined;
+            return;
+        }
+        else if (pay.success && gen == prevGen) {
+            return;
+        }
+        else {
+            prevGen = gen;
+        }
+        // Create a bunch of clickable mana symbols
+        getId("pccgeneric").innerHTML = "Pay " + gen + ":<br/>" + new ManaCost(manaPool.simplified).asHTML("clickablegen");
+        for (let i of document.getElementsByClassName("clickablegen")) {
+            i.onclick = function () {
+                let m = JSON.parse(i.getAttribute("mana_type"));
+                console.log(m);
+                if (i.classList.contains("selectedmana")) {
+                    if (forGeneric[m])
+                        forGeneric[m]--;
+                    else
+                        throw new Error("expected " + JSON.stringify(forGeneric) + " to contain some " + m);
+                    genericsSelected--;
+                    i.classList.remove("selectedmana");
+                }
+                else {
+                    if (forGeneric[m])
+                        forGeneric[m]++;
+                    else
+                        forGeneric[m] = 1;
+                    genericsSelected++;
+                    i.classList.add("selectedmana");
+                }
+                updateSubmitter();
+            };
+        }
+    };
+    updateGenerics();
+    for (let i of document.getElementsByClassName("clickablemana")) {
+        i.onclick = function () {
+            // Unselect the other items in the group
+            for (let other of Array.from(i.parentElement.children)) {
+                if (other.classList.contains("selectedmana")) {
+                    let otherMana = JSON.parse(other.getAttribute("mana_type"));
+                    for (let m in otherMana) {
+                        if (selectedSymbols[m] >= otherMana[m])
+                            selectedSymbols[m] -= otherMana[m];
+                        else
+                            throw new Error("expected " + JSON.stringify(selectedSymbols) + " to contain " + otherMana[m] + " or more " + m);
+                    }
+                    amountSelected--;
+                    other.classList.remove("selectedmana");
+                }
+            }
+            // Add this to the selection
+            let mana = JSON.parse(i.getAttribute("mana_type")); // Assuming that this works
+            for (let m in mana) {
+                if (selectedSymbols[m])
+                    selectedSymbols[m] += mana[m];
+                else
+                    selectedSymbols[m] = mana[m];
+            }
+            amountSelected++;
+            i.classList.add("selectedmana");
+            // Check the submit button
+            updateGenerics();
+            updateSubmitter();
+        };
+    }
+    getId("pccsubmit").onclick = function () {
+        if (!getId("pccsubmit").classList.contains("submittable"))
+            return;
+        getId("pcccontainer").style.display = "none";
+        player.choosing = false;
+        continuation(selectedSymbols, forGeneric);
+        getId("pccsubmit").classList.remove("submittable");
+        getId("endturn").style.display = "block";
+        getId("endphase").style.display = "block";
+        getId("pass").style.display = "block";
+        selectedSymbols = {};
+        renderBattlefield();
     };
 }
 function passPriority() {
@@ -652,6 +784,7 @@ export let UI = {
     selection: selection,
     submitSelection: submitSelection,
     chooseOptions: chooseOptions,
+    payComplexCosts: payComplexCosts,
     passPriority: passPriority,
     endPhase: endPhase,
     endTurn: endTurn

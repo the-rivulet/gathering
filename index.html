@@ -1,10 +1,6 @@
 <!DOCTYPE html>
 <html>
 
-<!--
-  TODO: GY, exile piles
--->
-
 <head>
   <title>Woogic</title>
   <link rel="stylesheet" href="./style.css">
@@ -14,13 +10,25 @@
 <body>
   <div id="cover" style="opacity: 0%;"></div>
   <img src="./assets/playmat.png" id="playmat">
-  <div id="optcontainer" style="display:none;">
-    <div id="optchooser">
+
+  <div id="optcontainer" class="container" style="display:none;">
+    <div id="optchooser" class="contained">
       <span id="optmsg"></span>
       <div id="optlist"></div>
-      <button id="optsubmit">OK</button>
+      <button id="optsubmit" class="submitter">Confirm</button>
     </div>
   </div>
+
+  <div id="pcccontainer" class="container" style="display:none;">
+    <div id="pccgrid" class="contained">
+      <span id="topbit">How do you want to pay?<br/>Click a mana symbol to add or remove it.</span>
+      <div id="pccsymbols"></div>
+      <div id="pcctopay"></div>
+      <div id="pccgeneric"></div>
+      <button id="pccsubmit" class="submitter">Confirm</button>
+    </div>
+  </div>
+
   <div id="targetinfo" style="opacity: 0%;"></div>
   <div id="stack"></div>
   <div id="field"></div>
@@ -29,7 +37,7 @@
 
   <div id="pass-buttons">
     <button id="endturn" class="tt cool">>><span class="tx">End Turn</span></button>
-    <button id="pass" class="cool">Pass</button>
+    <button id="pass">Pass</button>
     <button id="endphase" class="tt cool">><span class="tx">Advance Phase</span></button>
   </div>
   <button id="confirm" class="cool" style="display: none;">Confirm</button>
@@ -66,7 +74,7 @@
     getId("endphase").onclick = () => UI.endPhase();
     getId("endturn").onclick = () => UI.endTurn();
 
-    StartGame();
+    RunTests();
   </script>
 </body>
 
