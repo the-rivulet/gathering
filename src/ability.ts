@@ -20,17 +20,17 @@ export abstract class ActivatedAbility extends Ability {
   abstract activate(card: Permanent): boolean;
 }
 
-export class SimpleActivatedAbility extends ActivatedAbility {
+export class SimpleActivatedAbility<T extends Permanent> extends ActivatedAbility {
   cost: Cost;
   effect: (card: Permanent) => void;
   manaAbility: boolean;
-  constructor(cost: Cost, effect: (card: Permanent) => void, isManaAbility = false) {
+  constructor(cost: Cost, effect: (card: T) => void, isManaAbility = false) {
     super(); // Pointless lol
     this.cost = cost;
     this.effect = effect;
     this.manaAbility = isManaAbility;
   }
-  activate(card: Permanent) {
+  activate(card: T) {
     //if (Battlefield.filter(x => x.abilities.filter(y => y instanceof PreventActivationAbility && y.req(x, card, this)).length).length) return false;
     if (!this.cost.pay(card, true)) return false;
     this.effect(card);
@@ -38,21 +38,30 @@ export class SimpleActivatedAbility extends ActivatedAbility {
   }
 }
 
-export class TargetedActivatedAbility extends ActivatedAbility {
-  validate: (card: Permanent) => (targets: any[]) => boolean;
-  possible: (card: Permanent) => () => boolean;
+export class TargetedActivatedAbility<T extends Permanent> extends ActivatedAbility {
+  validate: (card: T) => (targets: any[]) => boolean;
+  possible: (card: T) => () => boolean;
   effect: (card: Permanent, targets: any[]) => void;
   limitOne: boolean;
-  constructor(validate: (card: Permanent) => (targets: any[]) => boolean, possible: (card: Permanent) => () => boolean, effect: (card: Permanent, targets: any[]) => void, limitOne = false) {
+  constructor(validate: (card: T) => (targets: any[]) => boolean, possible: (card: T) => () => boolean, effect: (card: Permanent, targets: any[]) => void, limitOne = false) {
     super();
     this.validate = validate;
     this.possible = possible;
     this.effect = effect;
     this.limitOne = limitOne;
   };
-  activate(card: Permanent) {
+  activate(card: T) {
     return card.controller.selectTargets(undefined, this.validate(card), this.possible(card), "Select some targets", result => this.effect(card, result), this.limitOne);
   }
+}
+
+export abstract class EmptyAbility extends Ability {
+  // Has nothing in it, just used by other things. Reach is the only example I can think of.
+}
+
+export class ReachAbility extends EmptyAbility {
+  // This is so stupid
+  constructor() { super(); }
 }
 
 // This should use hooking

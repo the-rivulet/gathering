@@ -44,6 +44,12 @@ export class TargetedActivatedAbility extends ActivatedAbility {
         return card.controller.selectTargets(undefined, this.validate(card), this.possible(card), "Select some targets", result => this.effect(card, result), this.limitOne);
     }
 }
+export class EmptyAbility extends Ability {
+}
+export class ReachAbility extends EmptyAbility {
+    // This is so stupid
+    constructor() { super(); }
+}
 // This should use hooking
 /*
 class TriggeredAbility extends Ability {

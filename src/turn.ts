@@ -45,8 +45,8 @@ export class TurnManagerClass {
   get stepName() {
     return Step[this.step];
   }
-  async beginStep() {
-    ApplyHooks(x => x instanceof BeginStepHook, async (that: TurnManagerClass) => {
+  beginStep() {
+    ApplyHooks(BeginStepHook, that => {
       // Trigger certain effects based on what step just started
       if (that.step == Step.untap) {
         for (let i of Battlefield.filter(x => x.controller == that.currentPlayer)) {

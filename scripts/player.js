@@ -3,7 +3,7 @@ import { ManaPool } from "./mana.js";
 import { Creature, Permanent } from "./permanent.js";
 import { Battlefield, TurnManager, StackManager } from "./globals.js";
 import { StackCard } from "./stack.js";
-import { ApplyHooks, HasValidTargetsHook, PlayCardHook, CheckTargetsHook } from "./hook.js";
+import { ApplyHooks, HasValidTargetsHook, PlayCardHook, CheckTargetsHook, MarkAsBlockerHook } from "./hook.js";
 import { TapCost } from "./cost.js";
 import { ZoneManager, Zone } from "./zone.js";
 import { Step } from "./turn.js";
@@ -24,12 +24,12 @@ export class SelectionData {
         this.limitOne = limitOne;
     }
     possible(field) {
-        return ApplyHooks(x => x instanceof HasValidTargetsHook, function (that, field) {
+        return ApplyHooks(HasValidTargetsHook, function (that, field) {
             return that.basePossible(field);
         }, this, field);
     }
     validate(t) {
-        return ApplyHooks(x => x instanceof CheckTargetsHook, function (that, t) {
+        return ApplyHooks(CheckTargetsHook, function (that, t) {
             return that.baseValidate(t);
         }, this, t);
     }
@@ -55,6 +55,9 @@ export class Player {
         }
         this.startingLifeTotal = life;
         this.lifeTotal = life;
+    }
+    is(player) {
+        return this.uuid == player.uuid;
     }
     createNewCard(c, zone = Zone.limbo, clone = false) {
         let card = clone ? c.makeEquivalentCopy() : c;
@@ -167,8 +170,8 @@ export class Player {
         }
     }
     async play(card, free = false, noCheck = false, forceTargets) {
-        ApplyHooks(x => x instanceof PlayCardHook, (that, card, free, noCheck, forceTargets) => {
-            if (card.types.includes('Land') && card instanceof PermanentCard)
+        ApplyHooks(PlayCardHook, (that, card, free, noCheck, forceTargets) => {
+            if (card.hasType('Land') && card instanceof PermanentCard)
                 return that.playLand(card, free, noCheck);
             else if (card instanceof AuraCard)
                 return that.castAura(card, forceTargets ? forceTargets[0] : undefined, free, noCheck);
@@ -219,23 +222,25 @@ export class Player {
         return true;
     }
     get attackers() {
-        return Battlefield.filter(x => x instanceof Creature && x.attacking && x.controller == this);
+        return Battlefield.filter(x => x instanceof Creature && x.attacking && this.is(x.controller));
     }
     markAsBlocker(card, blocking, real = true) {
-        if (blocking && (blocking.controller == this || !blocking.attacking))
-            return false;
-        if (card.controller != this || TurnManager.step != Step.declare_blockers || TurnManager.defendingPlayer != this || card.tapped)
-            return false;
-        if (card.blocking.length)
-            return false; // TODO: make this its own function and add a hook
-        if (blocking && real)
-            card.blocking.push(blocking);
-        return true;
+        return ApplyHooks(MarkAsBlockerHook, (that, card, blocking, real) => {
+            if (blocking && (blocking.controller == that || !blocking.attacking))
+                return false;
+            if (card.controller != that || TurnManager.step != Step.declare_blockers || TurnManager.defendingPlayer != that || card.tapped)
+                return false;
+            if (card.blocking.length)
+                return false; // TODO: make this its own function and add a hook
+            if (blocking && real)
+                card.blocking.push(blocking);
+            return true;
+        }, this, card, blocking, real);
     }
     unmarkAsBlocker(card, blocking, real = true) {
         if (card.controller != this || TurnManager.step != Step.declare_blockers || TurnManager.defendingPlayer != this)
             return false;
-        if (!blocking && (blocking.controller == this || !card.blocking.includes(blocking)))
+        if (!blocking && (this.is(blocking.controller) || !card.blocking.includes(blocking)))
             return false;
         if (blocking && real)
             card.blocking.splice(card.blocking.indexOf(blocking), 1);

@@ -1,4 +1,4 @@
-import { PermanentCard } from "./card.js";
+import { PermanentCard, TypeList } from "./card.js";
 import { ComputedAbility } from "./ability.js";
 import { Battlefield } from "./globals.js";
 import { ApplyHooks, DestroyPermanentHook, StatsHook } from "./hook.js";
@@ -33,6 +33,15 @@ export class Permanent {
         Battlefield.push(this);
         UI.renderBattlefield();
     }
+    is(card) {
+        return this.uuid == card.uuid;
+    }
+    hasType(type) {
+        return this.types.list.includes(type);
+    }
+    hasAbility(kwd) {
+        return this.abilities.filter(x => x instanceof kwd).length > 0;
+    }
     get tapped() {
         return this.tapped_REAL;
     }
@@ -41,7 +50,7 @@ export class Permanent {
         UI.renderBattlefield();
     }
     destroy() {
-        ApplyHooks(x => x instanceof DestroyPermanentHook, (that) => {
+        ApplyHooks(DestroyPermanentHook, that => {
             Battlefield.splice(Battlefield.indexOf(that), 1);
             UI.renderBattlefield();
             if (that.representedCard.zone == Zone.battlefield)
@@ -96,6 +105,9 @@ export class Permanent {
         ];
         return a.map(x => x instanceof ComputedAbility ? x.evaluate(this) : x).flat();
     }
+    set types(t) {
+        this.baseTypes = (t instanceof TypeList ? t : new TypeList(t));
+    }
     get types() {
         return this.baseTypes;
     }
@@ -112,8 +124,6 @@ export class Creature extends Permanent {
         super(card);
         this.staticPower = card.power;
         this.staticToughness = card.toughness;
-        /*if(this.abilities.filter(x => x instanceof HasteAbility).length)
-          this.summoningSickness = false;*/
     }
     get basePower() {
         return typeof this.staticPower == 'number'
@@ -126,12 +136,26 @@ export class Creature extends Permanent {
             : this.staticToughness(this);
     }
     getStat(stat) {
-        return ApplyHooks(x => x instanceof StatsHook, (that, stat) => {
+        return ApplyHooks(StatsHook, (that, stat) => {
             return (stat == "power" ? that.basePower : that.baseToughness) + (this.counters['+1/+1'] || 0);
         }, this, stat);
     }
+    set types(t) {
+        let t2 = (t instanceof TypeList ? t.list : t);
+        this.baseTypes = new TypeList(t2.includes("Creature") ? t2 : ["Creature", ...t2]);
+    }
+    get types() {
+        // It's kinda bizarre that I need this, seeing as it already exists above.
+        return this.baseTypes;
+    }
+    set power(p) {
+        this.staticPower = p;
+    }
     get power() {
         return this.getStat("power");
+    }
+    set toughness(t) {
+        this.staticToughness = t;
     }
     get toughness() {
         return this.getStat("toughness");
@@ -153,13 +177,11 @@ export class Creature extends Permanent {
     }
     takeDamage(source, amount, combat = false) {
         let a = typeof amount == 'number' ? amount : amount();
-        //TriggerEffects(Events.onDealDamage, {source: source, target: this, amount: a, combat: combat});
         this.damage += a;
         if (this.damage >= this.toughness)
             this.destroy();
     }
     removeDamage(amount = Infinity) {
-        //TriggerEffects(Events.onRemoveDamage, {creature: this, amount: amount, removed: Math.min(amount, this.damage)})
         this.damage = Math.max(0, this.damage - amount);
     }
 }

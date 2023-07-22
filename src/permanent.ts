@@ -1,7 +1,7 @@
 import type { ManaCost } from "./mana.js";
 import type { Player } from "./player.js";
-import { Card, PermanentCard, CreatureCard } from "./card.js";
-import { Ability, ComputedAbility } from "./ability.js";
+import { Card, PermanentCard, CreatureCard, TypeList } from "./card.js";
+import { Ability, ComputedAbility, EmptyAbility } from "./ability.js";
 import { Battlefield } from "./globals.js";
 import { ApplyHooks, DestroyPermanentHook, StatsHook } from "./hook.js";
 import { Zone } from "./zone.js";
@@ -12,7 +12,7 @@ export class Permanent {
   uuid = Math.random();
   representedCard: PermanentCard;
   name: string;
-  baseTypes: string[];
+  baseTypes: TypeList;
   text: string;
   manaCost?: ManaCost;
   baseAbilities: Ability[] = [];
@@ -35,6 +35,15 @@ export class Permanent {
     Battlefield.push(this);
     UI.renderBattlefield();
   }
+  is(card: Permanent) {
+    return this.uuid == card.uuid;
+  }
+  hasType(type: string) {
+    return this.types.list.includes(type);
+  }
+  hasAbility(kwd: new (...args: any[]) => Ability) {
+    return this.abilities.filter(x => x instanceof kwd).length > 0;
+  }
   get tapped() {
     return this.tapped_REAL;
   }
@@ -43,7 +52,7 @@ export class Permanent {
     UI.renderBattlefield();
   }
   destroy() {
-    ApplyHooks(x => x instanceof DestroyPermanentHook, (that: Permanent) => {
+    ApplyHooks(DestroyPermanentHook, that => {
       Battlefield.splice(Battlefield.indexOf(that), 1);
       UI.renderBattlefield();
       if (that.representedCard.zone == Zone.battlefield) that.owner.moveCardTo(that.representedCard, Zone.graveyard);
@@ -94,7 +103,10 @@ export class Permanent {
     ];
     return a.map(x => x instanceof ComputedAbility ? x.evaluate(this) : x).flat();
   }
-  get types() {
+  set types(t: TypeList | string[]) {
+    this.baseTypes = (t instanceof TypeList ? t : new TypeList(t));
+  }
+  get types(): TypeList {
     return this.baseTypes;
   }
 }
@@ -111,8 +123,6 @@ export class Creature extends Permanent {
     super(card);
     this.staticPower = card.power;
     this.staticToughness = card.toughness;
-    /*if(this.abilities.filter(x => x instanceof HasteAbility).length)
-      this.summoningSickness = false;*/
   }
   get basePower() {
     return typeof this.staticPower == 'number'
@@ -124,15 +134,29 @@ export class Creature extends Permanent {
       ? this.staticToughness
       : this.staticToughness(this);
   }
-  getStat(stat: "power" | "toughness") {
-    return ApplyHooks(x => x instanceof StatsHook, (that: Creature, stat: "power" | "toughness") => {
+  getStat(stat: "power" | "toughness"): number {
+    return ApplyHooks(StatsHook, (that, stat) => {
       return (stat == "power" ? that.basePower : that.baseToughness) + (this.counters['+1/+1'] || 0);
     }, this, stat);
   }
-  get power() {
+  set types(t: TypeList | string[]) {
+    let t2 = (t instanceof TypeList ? t.list : t);
+    this.baseTypes = new TypeList(t2.includes("Creature") ? t2 : ["Creature", ...t2]);
+  }
+  get types(): TypeList {
+    // It's kinda bizarre that I need this, seeing as it already exists above.
+    return this.baseTypes;
+  }
+  set power(p: number | (() => number)) {
+    this.staticPower = p;
+  }
+  get power(): number {
     return this.getStat("power");
   }
-  get toughness() {
+  set toughness(t: number | (() => number)) {
+    this.staticToughness = t;
+  }
+  get toughness(): number {
     return this.getStat("toughness");
   }
   get blockedBy() {
@@ -152,12 +176,10 @@ export class Creature extends Permanent {
   }
   takeDamage(source: Card | Permanent, amount: number | (() => number), combat = false) {
     let a = typeof amount == 'number' ? amount : amount();
-    //TriggerEffects(Events.onDealDamage, {source: source, target: this, amount: a, combat: combat});
     this.damage += a;
     if (this.damage >= this.toughness) this.destroy();
   }
   removeDamage(amount: number = Infinity) {
-    //TriggerEffects(Events.onRemoveDamage, {creature: this, amount: amount, removed: Math.min(amount, this.damage)})
     this.damage = Math.max(0, this.damage - amount);
   }
 }

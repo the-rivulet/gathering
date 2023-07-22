@@ -214,9 +214,9 @@ function renderBattlefield() {
   getId("field").innerHTML = ""; // Clear out
   for (let p of TurnManager.playerList) {
     let pi = TurnManager.playerList.indexOf(p), h = pi == 0 ? -1 : pi == 1 ? 1 : 0;
-    let nl = p.zones.battlefield.filter(x => !x.types.includes("Land"));
+    let nl = p.zones.battlefield.filter(x => !x.hasType("Land"));
     renderRow(nl, 10 * h, valids);
-    let lands = p.zones.battlefield.filter(x => x.types.includes("Land"));
+    let lands = p.zones.battlefield.filter(x => x.hasType("Land"));
     renderRow(lands, 25 * h, valids);
     let hand = p.zones.hand;
     renderRow(hand, 40 * h, valids);
