@@ -94,3 +94,8 @@ export class HeroicAbility extends SelectTargetsHook {
         });
     }
 }
+export class ResolveCardHook extends Hook {
+    constructor(apply) {
+        super(apply);
+    }
+}

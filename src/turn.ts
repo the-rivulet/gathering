@@ -1,7 +1,8 @@
 import type { Player } from "./player.js";
+import type { Effect } from "./effect.js";
 import { VigilanceAbility, TrampleAbility } from "./ability.js";
 import { Battlefield, StackManager, TurnManager } from "./globals.js";
-import { Creature } from "./permanent.js";
+import { Permanent, Creature } from "./permanent.js";
 import { TapCost } from "./cost.js";
 import { ApplyHooks, BeginStepHook } from "./hook.js";
 
@@ -18,6 +19,12 @@ export enum Step {
   cleanup = 501,
 }
 
+interface StackDelay {
+  effect: Effect;
+  permanent: Permanent;
+  step: Step;
+}
+
 export class TurnManagerClass {
   playerList: Player[] = [];
   currentPlayer: Player;
@@ -25,6 +32,7 @@ export class TurnManagerClass {
   passedPriority: boolean;
   endedPhase: boolean;
   endedTurn: boolean;
+  delays: StackDelay[];
   step = Step.untap;
   stepIndex = 0;
   stepList = [
@@ -48,6 +56,11 @@ export class TurnManagerClass {
   }
   beginStep() {
     ApplyHooks(BeginStepHook, that => {
+      // Activate delays
+      for (let i of that.delays.filter(x => x.step == that.step)) {
+        i.effect.queue(i.permanent);
+      }
+      that.delays = that.delays.filter(x => x.step != that.step);
       // Trigger certain effects based on what step just started
       if (that.step == Step.untap) {
         for (let i of Battlefield.filter(x => x.controller.is(that.currentPlayer))) {

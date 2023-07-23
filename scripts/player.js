@@ -2,8 +2,7 @@ import { PermanentCard, CreatureCard, AuraCard, SpellCard } from "./card.js";
 import { ManaPool } from "./mana.js";
 import { Creature, Permanent } from "./permanent.js";
 import { Battlefield, TurnManager, StackManager } from "./globals.js";
-import { StackCard } from "./stack.js";
-import { ApplyHooks, HasValidTargetsHook, PlayCardHook, CheckTargetsHook, MarkAsBlockerHook, SelectTargetsHook } from "./hook.js";
+import { ApplyHooks, HasValidTargetsHook, PlayCardHook, CheckTargetsHook, MarkAsBlockerHook, SelectTargetsHook, ResolveCardHook } from "./hook.js";
 import { TapCost } from "./cost.js";
 import { ZoneManager, Zone } from "./zone.js";
 import { Step } from "./turn.js";
@@ -119,7 +118,7 @@ export class Player {
         if (!free)
             this.manaPool.pay(card, this);
         //TriggerEffects(Events.onCardCast, { player: this, card: card });
-        StackManager.add(new StackCard(card));
+        StackManager.add({ card: card });
         this.moveCardTo(card, Zone.stack);
         UI.renderStack();
         return true;
@@ -135,7 +134,7 @@ export class Player {
                 return false;
             }
             card.controller = this;
-            StackManager.add(new StackCard(card, targets));
+            StackManager.add({ card: card, targets: targets });
             UI.renderStack();
             return true;
         };
@@ -157,7 +156,7 @@ export class Player {
                 this.moveCardTo(card, Zone.graveyard);
                 return false;
             }
-            StackManager.add(new StackCard(card, targets));
+            StackManager.add({ card: card, targets: targets });
             UI.renderStack();
             return true;
         };
@@ -190,22 +189,24 @@ export class Player {
         this.moveCardTo(card, Zone.battlefield);
     }
     resolve(card, targets = []) {
-        if (card instanceof AuraCard) {
-            if (targets.length == 1 && card.validate(card, targets[0])) {
-                card.attached = targets[0];
-                this.moveCardTo(card, Zone.battlefield);
+        ApplyHooks(ResolveCardHook, (that, card, targets) => {
+            if (card instanceof AuraCard) {
+                if (targets.length == 1 && card.validate(card, targets[0])) {
+                    card.attached = targets[0];
+                    that.moveCardTo(card, Zone.battlefield);
+                }
+                else {
+                    that.moveCardTo(card, Zone.graveyard); // fizzle
+                }
             }
-            else {
-                this.moveCardTo(card, Zone.graveyard); // fizzle
+            else if (card instanceof PermanentCard) {
+                that.moveCardTo(card, Zone.battlefield);
             }
-        }
-        else if (card instanceof PermanentCard) {
-            this.moveCardTo(card, Zone.battlefield);
-        }
-        else if (card instanceof SpellCard) {
-            card.resolve(card, targets);
-            this.moveCardTo(card, Zone.graveyard);
-        }
+            else if (card instanceof SpellCard) {
+                card.resolve(card, targets);
+                that.moveCardTo(card, Zone.graveyard);
+            }
+        }, this, card, targets);
     }
     markAsAttacker(card, real = true) {
         if (card.controller != this || TurnManager.step != Step.declare_attackers || TurnManager.currentPlayer != this || card.attacking)

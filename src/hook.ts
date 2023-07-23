@@ -110,3 +110,9 @@ export class HeroicAbility extends SelectTargetsHook {
     });
   }
 }
+
+export class ResolveCardHook extends Hook<Player, [Card, any[]], void> {
+  constructor(apply: (me: Permanent, orig: (that: Player, card: Card, targets: any[]) => void, that: Player, card: Card, targets: any[]) => void) {
+    super(apply);
+  }
+}

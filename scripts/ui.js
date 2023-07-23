@@ -2,7 +2,6 @@ import { ManaCost, ManaUtils } from "./mana.js";
 import { ActivatedAbility, SimpleActivatedAbility, TargetedActivatedAbility } from "./ability.js";
 import { AuraCard, PermanentCard, SpellCard, CreatureCard } from "./card.js";
 import { TurnManager, Battlefield, StackManager, Settings } from "./globals.js";
-import { StackEffect } from "./stack.js";
 import { Zone } from "./zone.js";
 import { Step } from "./turn.js";
 let getId = (x) => document.getElementById(x);
@@ -263,7 +262,7 @@ function renderBattlefield() {
         let elem = getId("playerinfo" + i);
         elem.innerHTML = `
     ${p.name}<br/>
-    ${p.is(TurnManager.defendingPlayer) && TurnManager.step == Step.declare_blockers && TurnManager.currentPlayer.attackers.length ? "(" + (p.lifeTotal - TurnManager.currentPlayer.attackers.reduce((a, b) => a + b.power, 0)) + " ← ) " : ""}${p.lifeTotal}/${p.startingLifeTotal} life<br/>`;
+    ${TurnManager.defendingPlayer?.is(p) && TurnManager.step == Step.declare_blockers && TurnManager.currentPlayer.attackers.length ? "(" + (p.lifeTotal - TurnManager.currentPlayer.attackers.reduce((a, b) => a + b.power, 0)) + " ← ) " : ""}${p.lifeTotal}/${p.startingLifeTotal} life<br/>`;
         elem.innerHTML += p.manaPool.asHTML;
         // Click on a playerinfo to add/remove
         elem.onclick = function (e) {
@@ -419,7 +418,7 @@ function renderStack() {
     let s = getId("stack"), m = StackManager;
     s.innerHTML = `${TurnManager.currentPlayer.name}'s ${TurnManager.stepName} step<br/>Stack (${m.stack.length} item${m.stack.length == 1 ? "):" : m.stack.length ? "s):" : "s)"}`;
     for (let i of m.stack) {
-        s.innerHTML += "<br/>" + (i instanceof StackEffect ? "Effect → " + i.permanent.name : i.card.name +
+        s.innerHTML += "<br/>" + ("effect" in i ? "Effect → " + i.permanent.name : i.card.name +
             (i.targets.length ? i.targets.map(x => "<br/>↳ " + x.name || typeof x) : ""));
     }
     mouse();

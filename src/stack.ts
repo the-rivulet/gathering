@@ -2,26 +2,20 @@ import type { Card } from "./card.js";
 import type { Permanent } from "./permanent.js";
 import type { Effect } from "./effect.js";
 import { TurnManager, Settings } from "./globals.js";
+import { Step } from "./turn.js";
 
-export class StackCard {
+interface StackCard {
   card: Card;
-  targets: any[];
-  constructor(card: Card, targets: any[] = []) {
-    this.card = card;
-    this.targets = targets;
-  }
+  targets?: any[];
 }
 
-export class StackEffect {
+interface StackEffect {
   effect: Effect;
   permanent: Permanent;
-  constructor(
-    effect: Effect,
-    perm: Permanent,
-  ) {
-    this.effect = effect;
-    this.permanent = perm;
-  }
+}
+
+function isCard(item: StackCard | StackEffect): item is StackCard {
+  return 'card' in item;
 }
 
 export class StackManagerClass {
@@ -33,11 +27,9 @@ export class StackManagerClass {
   async resolveNext() {
     let next = this.stack.pop();
     if (!next) return;
-    if (next instanceof StackCard) {
+    if (isCard(next)) {
       if (next.card.owner) next.card.owner.resolve(next.card, next.targets);
-    } else if (next instanceof StackEffect) {
-      await next.effect.resolve(next.permanent);
-    }
+    } else next.effect.resolve(next.permanent);
   }
   get ready() {
     return (TurnManager.passedPriority || TurnManager.endedPhase || TurnManager.endedTurn) && !TurnManager.ongoingSelection && !TurnManager.choosing;

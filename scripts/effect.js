@@ -1,10 +1,9 @@
 import { ManaPool } from "./mana.js";
 import { TypeList } from "./card.js";
-import { StackEffect } from "./stack.js";
-import { StackManager } from "./globals.js";
+import { StackManager, TurnManager } from "./globals.js";
 export class Effect {
     queue(card) {
-        StackManager.add(new StackEffect(this, card));
+        StackManager.add({ effect: this, permanent: card });
     }
 }
 export class MultipleEffect extends Effect {
@@ -76,7 +75,7 @@ export class DrawCardsEffect extends Effect {
         card.controller.drawCard(this.amount);
     }
 }
-class DestroyCardsEffect extends Effect {
+export class DestroyCardsEffect extends Effect {
     cards;
     constructor(...cards) {
         super();
@@ -97,7 +96,7 @@ export class SetStatsEffect extends Effect {
         this.toughness = toughness;
     }
     queue(card) {
-        StackManager.add(new StackEffect(this, card));
+        StackManager.add({ effect: this, permanent: card });
     }
     resolve(card) {
         if (this.power)
@@ -114,5 +113,31 @@ export class SetTypesEffect extends Effect {
     }
     resolve(card) {
         card.types = this.types;
+    }
+}
+export class DelayedEffect extends Effect {
+    effect;
+    step;
+    constructor(effect, step) {
+        super();
+        this.effect = effect;
+        this.step = step;
+    }
+    resolve(card) {
+        TurnManager.delays.push({ effect: this.effect, step: this.step, permanent: card });
+    }
+}
+export class MoveCardsEffect extends Effect {
+    cards;
+    zone;
+    constructor(zone, ...cards) {
+        super();
+        this.zone = zone;
+        this.cards = cards;
+    }
+    resolve(card) {
+        for (let i of this.cards) {
+            card.controller.moveCardTo(i, this.zone);
+        }
     }
 }

@@ -1,15 +1,16 @@
 import type { Ability } from "./ability.js";
+import type { Step } from "./turn.js";
 import type { Permanent, Creature } from "./permanent.js";
 import { SimpleManaObject, ManaPool } from "./mana.js";
 import { Card, PermanentCard, TypeList } from "./card.js";
-import { StackEffect } from "./stack.js";
-import { StackManager } from "./globals.js";
+import { StackManager, TurnManager } from "./globals.js";
+import { Zone } from "./zone.js";
 
 export abstract class Effect {
   // A common parent for the different effect types.
   abstract resolve(card: Permanent): void;
   queue(card: Permanent) {
-    StackManager.add(new StackEffect(this, card));
+    StackManager.add({ effect: this, permanent: card });
   }
 }
 
@@ -86,7 +87,7 @@ export class DrawCardsEffect extends Effect {
   }
 }
 
-class DestroyCardsEffect extends Effect {
+export class DestroyCardsEffect extends Effect {
   cards: Card[];
   constructor(...cards: Card[]) {
     super();
@@ -108,7 +109,7 @@ export class SetStatsEffect extends Effect {
     this.toughness = toughness;
   }
   queue(card: Creature) {
-    StackManager.add(new StackEffect(this, card));
+    StackManager.add({ effect: this, permanent: card });
   }
   resolve(card: Creature) {
     if (this.power) card.power = this.power;
@@ -124,5 +125,33 @@ export class SetTypesEffect extends Effect {
   }
   resolve(card: Permanent) {
     card.types = this.types;
+  }
+}
+
+export class DelayedEffect extends Effect {
+  effect: Effect;
+  step: Step;
+  constructor(effect: Effect, step: Step) {
+    super();
+    this.effect = effect;
+    this.step = step;
+  }
+  resolve(card: Permanent) {
+    TurnManager.delays.push({ effect: this.effect, step: this.step, permanent: card });
+  }
+}
+
+export class MoveCardsEffect extends Effect {
+  cards: Card[];
+  zone: Zone;
+  constructor(zone: Zone, ...cards: Card[]) {
+    super();
+    this.zone = zone;
+    this.cards = cards;
+  }
+  resolve(card: Permanent) {
+    for (let i of this.cards) {
+      card.controller.moveCardTo(i, this.zone);
+    }
   }
 }

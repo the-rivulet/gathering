@@ -1,19 +1,6 @@
 import { TurnManager, Settings } from "./globals.js";
-export class StackCard {
-    card;
-    targets;
-    constructor(card, targets = []) {
-        this.card = card;
-        this.targets = targets;
-    }
-}
-export class StackEffect {
-    effect;
-    permanent;
-    constructor(effect, perm) {
-        this.effect = effect;
-        this.permanent = perm;
-    }
+function isCard(item) {
+    return 'card' in item;
 }
 export class StackManagerClass {
     stack = [];
@@ -25,13 +12,12 @@ export class StackManagerClass {
         let next = this.stack.pop();
         if (!next)
             return;
-        if (next instanceof StackCard) {
+        if (isCard(next)) {
             if (next.card.owner)
                 next.card.owner.resolve(next.card, next.targets);
         }
-        else if (next instanceof StackEffect) {
-            await next.effect.resolve(next.permanent);
-        }
+        else
+            next.effect.resolve(next.permanent);
     }
     get ready() {
         return (TurnManager.passedPriority || TurnManager.endedPhase || TurnManager.endedTurn) && !TurnManager.ongoingSelection && !TurnManager.choosing;

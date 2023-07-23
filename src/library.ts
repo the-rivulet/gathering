@@ -1,12 +1,13 @@
 import { PermanentCard, CreatureCard, AuraCard, SpellCard } from "./card.js";
 import { SimpleActivatedAbility, TargetedActivatedAbility, FirstStrikeAbility, VigilanceAbility, TrampleAbility } from "./ability.js";
-import { MultipleEffect, AddManaEffect, CreateTokenEffect, AddCounterEffect, ApplyAbilityEffect, SetStatsEffect, SetTypesEffect } from "./effect.js";
+import { MultipleEffect, AddManaEffect, CreateTokenEffect, AddCounterEffect, ApplyAbilityEffect, SetStatsEffect, SetTypesEffect, DelayedEffect, MoveCardsEffect } from "./effect.js";
 import { SacrificeSelfCost, TapCost } from "./cost.js";
 import { ManaCost, ManaPool } from "./mana.js";
-import { PlayCardHook, BeginStepHook, StatsHook, ProtectionAbility, FlyingAbility, HeroicAbility } from "./hook.js";
+import { PlayCardHook, BeginStepHook, StatsHook, ProtectionAbility, FlyingAbility, HeroicAbility, ResolveCardHook } from "./hook.js";
 import { Creature } from "./permanent.js";
 import { Battlefield } from "./globals.js";
 import { Step } from "./turn.js";
+import { Zone } from "./zone.js";
 
 class TreasureTokenCard extends PermanentCard {
   constructor() {
@@ -213,6 +214,28 @@ class AnaxAndCymedeCard extends CreatureCard {
           }
         })
       ]
+    );
+  }
+}
+
+class FeatherTheRedeemedCard extends CreatureCard {
+  constructor() {
+    super(
+      'Feather, the Redeemed',
+      ['Creature', 'Legendary', 'Angel'],
+      `Flying
+      Whenever you cast a spell that targets a creature you control,
+      exile that card instead of putting it into your graveyard as it resolves.
+      If you do, return it to your hand at the beginning of the next end step.`,
+      3, 4,
+      new ManaCost({ red: 1, white: 2 }),
+      new ResolveCardHook((me, orig, that, card, targets) => {
+        if (card instanceof SpellCard && that.is(card.controller) && targets.filter(x => x instanceof Creature && x.controller.is(me.controller)).length) {
+          card.resolve(card, targets);
+          that.moveCardTo(card, Zone.exile);
+          new DelayedEffect(new MoveCardsEffect(Zone.hand, card), Step.end).queue(me);
+        } else orig(that, card, targets);
+      })
     );
   }
 }

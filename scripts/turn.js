@@ -23,6 +23,7 @@ export class TurnManagerClass {
     passedPriority;
     endedPhase;
     endedTurn;
+    delays;
     step = Step.untap;
     stepIndex = 0;
     stepList = [
@@ -46,6 +47,11 @@ export class TurnManagerClass {
     }
     beginStep() {
         ApplyHooks(BeginStepHook, that => {
+            // Activate delays
+            for (let i of that.delays.filter(x => x.step == that.step)) {
+                i.effect.queue(i.permanent);
+            }
+            that.delays = that.delays.filter(x => x.step != that.step);
             // Trigger certain effects based on what step just started
             if (that.step == Step.untap) {
                 for (let i of Battlefield.filter(x => x.controller.is(that.currentPlayer))) {
