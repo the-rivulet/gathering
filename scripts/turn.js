@@ -2,7 +2,7 @@ import { VigilanceAbility, TrampleAbility } from "./ability.js";
 import { Battlefield, StackManager, TurnManager } from "./globals.js";
 import { Creature } from "./permanent.js";
 import { TapCost } from "./cost.js";
-import { ApplyHooks, BeginStepHook } from "./hook.js";
+import { ApplyHooks, BeginStepHook, ValidStateHook } from "./hook.js";
 export var Step;
 (function (Step) {
     Step[Step["untap"] = 100] = "untap";
@@ -23,7 +23,7 @@ export class TurnManagerClass {
     passedPriority;
     endedPhase;
     endedTurn;
-    delays;
+    delays = [];
     step = Step.untap;
     stepIndex = 0;
     stepList = [
@@ -187,11 +187,12 @@ export class TurnManagerClass {
     get autoAdvance() {
         return [Step.untap, Step.cleanup, Step.deal_damage, Step.draw].includes(this.step);
     }
+    get validState() {
+        return ApplyHooks(ValidStateHook, that => true, this);
+    }
     advanceIfReady() {
         let that = TurnManager; // what the flurp?
-        if (!that.playerList.length)
-            return;
-        if ((!that.endedPhase && !that.endedTurn && !that.autoAdvance) || StackManager.stack.length || that.choosing)
+        if (!that.playerList.length || !that.validState || (!that.endedPhase && !that.endedTurn && !that.autoAdvance) || StackManager.stack.length || that.choosing)
             return;
         if (that.endedTurn) {
             // End the turn

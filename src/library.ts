@@ -1,9 +1,9 @@
-import { PermanentCard, CreatureCard, AuraCard, SpellCard } from "./card.js";
+import { PermanentCard, CreatureCard, AuraCard, SpellCard, TypeList } from "./card.js";
 import { SimpleActivatedAbility, TargetedActivatedAbility, FirstStrikeAbility, VigilanceAbility, TrampleAbility } from "./ability.js";
 import { MultipleEffect, AddManaEffect, CreateTokenEffect, AddCounterEffect, ApplyAbilityEffect, SetStatsEffect, SetTypesEffect, DelayedEffect, MoveCardsEffect } from "./effect.js";
 import { SacrificeSelfCost, TapCost } from "./cost.js";
 import { ManaCost, ManaPool } from "./mana.js";
-import { PlayCardHook, BeginStepHook, StatsHook, ProtectionAbility, FlyingAbility, HeroicAbility, ResolveCardHook } from "./hook.js";
+import { PlayCardHook, BeginStepHook, StatsHook, ProtectionAbility, FlyingAbility, HeroicAbility, ResolveCardHook, IndestructibleAbility, TypesHook, AbilitiesHook, MenaceAbility, TakeDamageHook } from "./hook.js";
 import { Creature } from "./permanent.js";
 import { Battlefield } from "./globals.js";
 import { Step } from "./turn.js";
@@ -223,7 +223,7 @@ class FeatherTheRedeemedCard extends CreatureCard {
     super(
       'Feather, the Redeemed',
       ['Creature', 'Legendary', 'Angel'],
-      `Flying
+      `Flying.
       Whenever you cast a spell that targets a creature you control,
       exile that card instead of putting it into your graveyard as it resolves.
       If you do, return it to your hand at the beginning of the next end step.`,
@@ -236,6 +236,35 @@ class FeatherTheRedeemedCard extends CreatureCard {
           new DelayedEffect(new MoveCardsEffect(Zone.hand, card), Step.end).queue(me);
         } else orig(that, card, targets);
       })
+    );
+  }
+}
+
+class IroasGodOfVictoryCard extends CreatureCard {
+  constructor() {
+    super(
+      'Iroas, God of Victory',
+      ['Creature', 'Enchantment', 'Legendary', 'God'],
+      `Indestructible. As long as your devotion to red and white is less than seven, Iroas isn't a creature.
+      Creatures you control have menace.
+      Prevent all damage that would be dealt to attacking creatures you control.`,
+      7, 4,
+      new ManaCost({ red: 1, white: 1, generic: 2 }),
+      [
+        new IndestructibleAbility(),
+        new TypesHook((me, orig, that) => {
+          if (!me.is(that) || that.controller.devotionTo("red", "white") >= 7) return orig(that);
+          return new TypeList(orig(that).list.filter(x => x != 'Creature'));
+        }),
+        new AbilitiesHook((me, orig, that) => {
+          if (!that.controller.is(me.controller)) return orig(that);
+          return [...orig(that), new MenaceAbility()];
+        }),
+        new TakeDamageHook((me, orig, that, source, amount, combat, destroy) => {
+          if (!that.controller.is(me.controller) || !that.attacking) return orig(that, source, amount, combat, destroy);
+          // Otherwise, do nothing.
+        })
+      ]
     );
   }
 }

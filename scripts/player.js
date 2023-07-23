@@ -278,4 +278,7 @@ export class Player {
     payComplexCosts(mana, generic, choices, continuation) {
         UI.payComplexCosts(this, mana, generic, choices, continuation);
     }
+    devotionTo(...colors) {
+        return colors.map(color => this.zones.battlefield.map(x => x.manaCost.simplified[color]).reduce((a, b) => a + b, 0)).reduce((a, b) => a + b, 0);
+    }
 }

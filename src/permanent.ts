@@ -3,7 +3,7 @@ import type { Player } from "./player.js";
 import { Card, PermanentCard, CreatureCard, TypeList } from "./card.js";
 import { Ability, ComputedAbility, FirstStrikeAbility, DoubleStrikeAbility } from "./ability.js";
 import { Battlefield } from "./globals.js";
-import { ApplyHooks, DestroyPermanentHook, StatsHook } from "./hook.js";
+import { ApplyHooks, DestroyPermanentHook, StatsHook, TypesHook, AbilitiesHook } from "./hook.js";
 import { Zone } from "./zone.js";
 import { UI } from "./ui.js";
 
@@ -88,26 +88,22 @@ export class Permanent {
     });*/
   }
   get abilities(): Ability[] {
-    let a = [
-      ...this.tempAbilities,
-      ...this.eternalAbilities,
-      ...this.baseAbilities,
-    ];
-    return a.map(x => x instanceof ComputedAbility ? x.evaluate(this) : x).flat();
-  }
-  get selfAbilities(): Ability[] {
-    let a = [
-      ...this.tempAbilities,
-      ...this.eternalAbilities,
-      ...this.baseAbilities,
-    ];
-    return a.map(x => x instanceof ComputedAbility ? x.evaluate(this) : x).flat();
+    return ApplyHooks(AbilitiesHook, that => {
+      let a = [
+        ...that.tempAbilities,
+        ...that.eternalAbilities,
+        ...that.baseAbilities,
+      ];
+      return a.map(x => x instanceof ComputedAbility ? x.evaluate(that) : x).flat();
+    }, this);
   }
   set types(t: TypeList | string[]) {
     this.baseTypes = (t instanceof TypeList ? t : new TypeList(t));
   }
   get types(): TypeList {
-    return this.baseTypes;
+    return ApplyHooks(TypesHook, that => {
+      return that.baseTypes;
+    }, this);
   }
 }
 
@@ -145,7 +141,9 @@ export class Creature extends Permanent {
   }
   get types(): TypeList {
     // It's kinda bizarre that I need this, seeing as it already exists above.
-    return this.baseTypes;
+    return ApplyHooks(TypesHook, that => {
+      return that.baseTypes;
+    }, this);
   }
   set power(p: number | (() => number)) {
     this.staticPower = p;
@@ -186,7 +184,7 @@ export class Creature extends Permanent {
     if (!destroy) destroy = !combat;
     let a = typeof amount == 'number' ? amount : amount();
     this.damage += a;
-    if (!destroy && this.damage >= this.toughness) this.destroy();
+    if (destroy && this.damage >= this.toughness) this.destroy();
   }
   removeDamage(amount: number = Infinity) {
     this.damage = Math.max(0, this.damage - amount);

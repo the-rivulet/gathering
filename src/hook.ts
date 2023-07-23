@@ -1,8 +1,8 @@
 import type { Player, SelectionData } from "./player.js";
-import type { TurnManagerClass } from "./turn.js";
-import type { Permanent, Creature } from "./permanent.js";
-import type { AuraCard, SpellCard } from "./card.js";
+import { Permanent, Creature } from "./permanent.js";
+import type { AuraCard, SpellCard, TypeList } from "./card.js";
 import type { Card } from "./card.js";
+import { TurnManagerClass, Step } from "./turn.js";
 import { Battlefield } from "./globals.js";
 import { Ability, ComputedAbility, ReachAbility } from "./ability.js";
 
@@ -22,7 +22,6 @@ export function ApplyHooks<T, U extends any[], V>(hook: new (...args: any[]) => 
 }
 
 export abstract class Hook<T, U extends any[], V> extends Ability {
-  // "Hooks" a method to modify it.
   apply: (me: Permanent, orig: (that: T, ...args: U) => V) => (that: T, ...args: U) => V;
   constructor(apply: (me: Permanent, orig: (that: T, ...args: U) => V, that: T, ...args: U) => V) {
     super();
@@ -33,6 +32,13 @@ export abstract class Hook<T, U extends any[], V> extends Ability {
 export class DestroyPermanentHook extends Hook<Permanent, [], void> {
   constructor(apply: (me: Permanent, orig: (that: Permanent) => void, that: Permanent) => void) {
     super(apply);
+  }
+}
+
+export class IndestructibleAbility extends DestroyPermanentHook {
+  constructor() {
+    // Do nothing.
+    super((me, orig, that) => { });
   }
 }
 
@@ -113,6 +119,39 @@ export class HeroicAbility extends SelectTargetsHook {
 
 export class ResolveCardHook extends Hook<Player, [Card, any[]], void> {
   constructor(apply: (me: Permanent, orig: (that: Player, card: Card, targets: any[]) => void, that: Player, card: Card, targets: any[]) => void) {
+    super(apply);
+  }
+}
+
+export class TypesHook extends Hook<Permanent, [], TypeList> {
+  constructor(apply: (me: Permanent, orig: (that: Permanent) => TypeList, that: Permanent) => TypeList) {
+    super(apply);
+  }
+}
+
+export class AbilitiesHook extends Hook<Permanent, [], Ability[]> {
+  constructor(apply: (me: Permanent, orig: (that: Permanent) => Ability[], that: Permanent) => Ability[]) {
+    super(apply);
+  }
+}
+
+export class ValidStateHook extends Hook<TurnManagerClass, [], boolean> {
+  constructor(apply: (me: Permanent, orig: (that: TurnManagerClass) => boolean, that: TurnManagerClass) => boolean) {
+    super(apply);
+  }
+}
+
+export class MenaceAbility extends ValidStateHook {
+  constructor() {
+    super((me, orig, that) => {
+      if (that.step == Step.declare_blockers && me instanceof Creature && me.blockedBy.length == 1) return false;
+      else return orig(that);
+    });
+  }
+}
+
+export class TakeDamageHook extends Hook<Creature, [Card | Permanent, number | (() => number), boolean, boolean], void> {
+  constructor(apply: (me: Permanent, orig: (that: Creature, source: Card | Permanent, amount: number | (() => number), combat: boolean, destroy: boolean) => void, that: Creature, source: Card | Permanent, amount: number | (() => number), combat: boolean, destroy: boolean) => void) {
     super(apply);
   }
 }

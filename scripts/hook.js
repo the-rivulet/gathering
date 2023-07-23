@@ -1,3 +1,5 @@
+import { Creature } from "./permanent.js";
+import { Step } from "./turn.js";
 import { Battlefield } from "./globals.js";
 import { Ability, ComputedAbility, ReachAbility } from "./ability.js";
 /**
@@ -15,7 +17,6 @@ export function ApplyHooks(hook, orig, that, ...args) {
     return orig(that, ...args);
 }
 export class Hook extends Ability {
-    // "Hooks" a method to modify it.
     apply;
     constructor(apply) {
         super();
@@ -25,6 +26,12 @@ export class Hook extends Ability {
 export class DestroyPermanentHook extends Hook {
     constructor(apply) {
         super(apply);
+    }
+}
+export class IndestructibleAbility extends DestroyPermanentHook {
+    constructor() {
+        // Do nothing.
+        super((me, orig, that) => { });
     }
 }
 export class BeginStepHook extends Hook {
@@ -95,6 +102,36 @@ export class HeroicAbility extends SelectTargetsHook {
     }
 }
 export class ResolveCardHook extends Hook {
+    constructor(apply) {
+        super(apply);
+    }
+}
+export class TypesHook extends Hook {
+    constructor(apply) {
+        super(apply);
+    }
+}
+export class AbilitiesHook extends Hook {
+    constructor(apply) {
+        super(apply);
+    }
+}
+export class ValidStateHook extends Hook {
+    constructor(apply) {
+        super(apply);
+    }
+}
+export class MenaceAbility extends ValidStateHook {
+    constructor() {
+        super((me, orig, that) => {
+            if (that.step == Step.declare_blockers && me instanceof Creature && me.blockedBy.length == 1)
+                return false;
+            else
+                return orig(that);
+        });
+    }
+}
+export class TakeDamageHook extends Hook {
     constructor(apply) {
         super(apply);
     }

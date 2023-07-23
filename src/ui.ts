@@ -1,6 +1,6 @@
 import type { Player } from "./player.js";
 import type { Creature, Permanent } from "./permanent.js";
-import { ManaPool, SimpleManaObject, ManaObject, ManaPoolPart, ManaCost, ManaUtils } from "./mana.js";
+import { ManaPool, SimpleManaObject, ManaCost, ManaUtils } from "./mana.js";
 import { ActivatedAbility, SimpleActivatedAbility, TargetedActivatedAbility } from "./ability.js";
 import { Card, AuraCard, PermanentCard, SpellCard, CreatureCard } from "./card.js";
 import { TurnManager, Battlefield, StackManager, Settings } from "./globals.js";
@@ -220,11 +220,13 @@ function renderBattlefield() {
     let hand = p.zones.hand;
     renderRow(hand, 40 * h, valids);
   }
+  // If blockers are not valid (because of menace) you can't continue
+  let invalid = !TurnManager.validState;
   if (TurnManager.passedPriority || TurnManager.endedPhase || TurnManager.endedTurn || !StackManager.stack.length) getId("pass").classList.add("pushed");
   else getId("pass").classList.remove("pushed");
-  if (TurnManager.endedPhase || TurnManager.endedTurn) getId("endphase").classList.add("pushed");
+  if (TurnManager.endedPhase || TurnManager.endedTurn || invalid) getId("endphase").classList.add("pushed");
   else getId("endphase").classList.remove("pushed");
-  if (TurnManager.endedTurn) getId("endturn").classList.add("pushed");
+  if (TurnManager.endedTurn || invalid) getId("endturn").classList.add("pushed");
   else getId("endturn").classList.remove("pushed");
   // Now for the players.
   for (let i = 0; i <= 1; i++) {

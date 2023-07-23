@@ -1,7 +1,7 @@
 import { PermanentCard, TypeList } from "./card.js";
 import { ComputedAbility, FirstStrikeAbility, DoubleStrikeAbility } from "./ability.js";
 import { Battlefield } from "./globals.js";
-import { ApplyHooks, DestroyPermanentHook, StatsHook } from "./hook.js";
+import { ApplyHooks, DestroyPermanentHook, StatsHook, TypesHook, AbilitiesHook } from "./hook.js";
 import { Zone } from "./zone.js";
 import { UI } from "./ui.js";
 export class Permanent {
@@ -90,26 +90,22 @@ export class Permanent {
         });*/
     }
     get abilities() {
-        let a = [
-            ...this.tempAbilities,
-            ...this.eternalAbilities,
-            ...this.baseAbilities,
-        ];
-        return a.map(x => x instanceof ComputedAbility ? x.evaluate(this) : x).flat();
-    }
-    get selfAbilities() {
-        let a = [
-            ...this.tempAbilities,
-            ...this.eternalAbilities,
-            ...this.baseAbilities,
-        ];
-        return a.map(x => x instanceof ComputedAbility ? x.evaluate(this) : x).flat();
+        return ApplyHooks(AbilitiesHook, that => {
+            let a = [
+                ...that.tempAbilities,
+                ...that.eternalAbilities,
+                ...that.baseAbilities,
+            ];
+            return a.map(x => x instanceof ComputedAbility ? x.evaluate(that) : x).flat();
+        }, this);
     }
     set types(t) {
         this.baseTypes = (t instanceof TypeList ? t : new TypeList(t));
     }
     get types() {
-        return this.baseTypes;
+        return ApplyHooks(TypesHook, that => {
+            return that.baseTypes;
+        }, this);
     }
 }
 export class Creature extends Permanent {
@@ -146,7 +142,9 @@ export class Creature extends Permanent {
     }
     get types() {
         // It's kinda bizarre that I need this, seeing as it already exists above.
-        return this.baseTypes;
+        return ApplyHooks(TypesHook, that => {
+            return that.baseTypes;
+        }, this);
     }
     set power(p) {
         this.staticPower = p;
@@ -189,7 +187,7 @@ export class Creature extends Permanent {
             destroy = !combat;
         let a = typeof amount == 'number' ? amount : amount();
         this.damage += a;
-        if (!destroy && this.damage >= this.toughness)
+        if (destroy && this.damage >= this.toughness)
             this.destroy();
     }
     removeDamage(amount = Infinity) {

@@ -231,15 +231,17 @@ function renderBattlefield() {
         let hand = p.zones.hand;
         renderRow(hand, 40 * h, valids);
     }
+    // If blockers are not valid (because of menace) you can't continue
+    let invalid = !TurnManager.validState;
     if (TurnManager.passedPriority || TurnManager.endedPhase || TurnManager.endedTurn || !StackManager.stack.length)
         getId("pass").classList.add("pushed");
     else
         getId("pass").classList.remove("pushed");
-    if (TurnManager.endedPhase || TurnManager.endedTurn)
+    if (TurnManager.endedPhase || TurnManager.endedTurn || invalid)
         getId("endphase").classList.add("pushed");
     else
         getId("endphase").classList.remove("pushed");
-    if (TurnManager.endedTurn)
+    if (TurnManager.endedTurn || invalid)
         getId("endturn").classList.add("pushed");
     else
         getId("endturn").classList.remove("pushed");

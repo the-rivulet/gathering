@@ -112,7 +112,7 @@ export class Player {
     if (!card.castable(this, auto, free)) return false;
     if (!free) this.manaPool.pay(card, this);
     //TriggerEffects(Events.onCardCast, { player: this, card: card });
-    StackManager.add({card: card});
+    StackManager.add({ card: card });
     this.moveCardTo(card, Zone.stack);
     UI.renderStack();
     return true;
@@ -126,7 +126,7 @@ export class Player {
         return false;
       }
       card.controller = this;
-      StackManager.add({card: card, targets: targets});
+      StackManager.add({ card: card, targets: targets });
       UI.renderStack();
       return true;
     };
@@ -152,7 +152,7 @@ export class Player {
         this.moveCardTo(card, Zone.graveyard);
         return false;
       }
-      StackManager.add({card: card, targets: targets});
+      StackManager.add({ card: card, targets: targets });
       UI.renderStack();
       return true;
     };
@@ -258,5 +258,7 @@ export class Player {
   payComplexCosts(mana: ManaPool, generic: number, choices: SimpleManaObject[][], continuation: (choices: SimpleManaObject, forGeneric: SimpleManaObject) => void) {
     UI.payComplexCosts(this, mana, generic, choices, continuation);
   }
+  devotionTo(...colors: ("white" | "blue" | "black" | "red" | "green" | "colorless" | "generic")[]) {
+    return colors.map(color => this.zones.battlefield.map(x => x.manaCost.simplified[color]).reduce((a, b) => a + b, 0)).reduce((a, b) => a + b, 0);
+  }
 }
-
