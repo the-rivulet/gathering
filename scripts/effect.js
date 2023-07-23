@@ -1,5 +1,5 @@
 import { ManaPool } from "./mana.js";
-import { Card } from "./card.js";
+import { TypeList } from "./card.js";
 import { StackEffect } from "./stack.js";
 import { StackManager } from "./globals.js";
 export class Effect {
@@ -7,6 +7,20 @@ export class Effect {
         StackManager.add(new StackEffect(this, card));
     }
 }
+export class MultipleEffect extends Effect {
+    effects;
+    constructor(...effects) {
+        super();
+        this.effects = effects;
+    }
+    resolve(card) {
+        for (let i of this.effects)
+            i.resolve(card);
+    }
+}
+/**
+ * Generally you would use `resolve`, rather than `queue`, on this effect.
+ */
 export class AddManaEffect extends Effect {
     mana;
     constructor(mana = {}) {
@@ -15,10 +29,9 @@ export class AddManaEffect extends Effect {
     }
     resolve(card) {
         card.controller.manaPool.add(this.mana);
-        return true;
     }
 }
-export class ApplyAbilityOnSelfEffect extends Effect {
+export class ApplyAbilityEffect extends Effect {
     abil;
     temp;
     constructor(abil, temp = true) {
@@ -28,7 +41,6 @@ export class ApplyAbilityOnSelfEffect extends Effect {
     }
     resolve(card) {
         card.applyAbility(this.abil, this.temp);
-        return true;
     }
 }
 export class CreateTokenEffect extends Effect {
@@ -39,10 +51,9 @@ export class CreateTokenEffect extends Effect {
     }
     resolve(card) {
         card.controller.createToken(this.token);
-        return true;
     }
 }
-export class AddCounterOnSelfEffect extends Effect {
+export class AddCounterEffect extends Effect {
     counter;
     amount = 1;
     constructor(counter, amount) {
@@ -53,7 +64,6 @@ export class AddCounterOnSelfEffect extends Effect {
     }
     resolve(card) {
         card.addCounter(this.counter, this.amount);
-        return true;
     }
 }
 export class DrawCardsEffect extends Effect {
@@ -63,19 +73,46 @@ export class DrawCardsEffect extends Effect {
         this.amount = amount;
     }
     resolve(card) {
-        return card.controller.drawCard(this.amount);
+        card.controller.drawCard(this.amount);
     }
 }
 class DestroyCardsEffect extends Effect {
     cards;
-    constructor(card) {
+    constructor(...cards) {
         super();
-        this.cards = card instanceof Card ? [card] : card;
+        this.cards = cards;
     }
     resolve(card) {
         for (let i of this.cards) {
             i.destroy();
         }
-        return true;
+    }
+}
+export class SetStatsEffect extends Effect {
+    power;
+    toughness;
+    constructor(power, toughness) {
+        super();
+        this.power = power;
+        this.toughness = toughness;
+    }
+    queue(card) {
+        StackManager.add(new StackEffect(this, card));
+    }
+    resolve(card) {
+        if (this.power)
+            card.power = this.power;
+        if (this.toughness)
+            card.toughness = this.toughness;
+    }
+}
+export class SetTypesEffect extends Effect {
+    types;
+    constructor(types) {
+        super();
+        this.types = types instanceof TypeList ? types : new TypeList(types);
+    }
+    resolve(card) {
+        card.types = this.types;
     }
 }

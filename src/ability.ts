@@ -59,10 +59,11 @@ export abstract class EmptyAbility extends Ability {
   // Has nothing in it, just used by other things. Reach is the only example I can think of.
 }
 
-export class ReachAbility extends EmptyAbility {
-  // This is so stupid
-  constructor() { super(); }
-}
+export class ReachAbility extends EmptyAbility { constructor() { super(); } }
+export class FirstStrikeAbility extends EmptyAbility { constructor() { super(); } }
+export class DoubleStrikeAbility extends EmptyAbility { constructor() { super(); } }
+export class VigilanceAbility extends EmptyAbility { constructor() { super(); } }
+export class TrampleAbility extends EmptyAbility { constructor() { super(); } }
 
 // This should use hooking
 /*

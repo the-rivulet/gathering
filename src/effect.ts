@@ -1,18 +1,32 @@
 import type { Ability } from "./ability.js";
-import type { Permanent } from "./permanent.js";
+import type { Permanent, Creature } from "./permanent.js";
 import { SimpleManaObject, ManaPool } from "./mana.js";
-import { Card, PermanentCard } from "./card.js";
+import { Card, PermanentCard, TypeList } from "./card.js";
 import { StackEffect } from "./stack.js";
 import { StackManager } from "./globals.js";
 
 export abstract class Effect {
   // A common parent for the different effect types.
-  abstract resolve(card: Permanent): boolean | Promise<boolean>;
+  abstract resolve(card: Permanent): void;
   queue(card: Permanent) {
     StackManager.add(new StackEffect(this, card));
   }
 }
 
+export class MultipleEffect extends Effect {
+  effects: Effect[];
+  constructor(...effects: Effect[]) {
+    super();
+    this.effects = effects;
+  }
+  resolve(card: Permanent) {
+    for (let i of this.effects) i.resolve(card);
+  }
+}
+
+/**
+ * Generally you would use `resolve`, rather than `queue`, on this effect.
+ */
 export class AddManaEffect extends Effect {
   mana: ManaPool;
   constructor(mana: SimpleManaObject | SimpleManaObject[] | ManaPool = {}) {
@@ -21,11 +35,10 @@ export class AddManaEffect extends Effect {
   }
   resolve(card: Permanent) {
     card.controller.manaPool.add(this.mana);
-    return true;
   }
 }
 
-export class ApplyAbilityOnSelfEffect extends Effect {
+export class ApplyAbilityEffect extends Effect {
   abil: Ability;
   temp: boolean;
   constructor(abil: Ability, temp = true) {
@@ -35,7 +48,6 @@ export class ApplyAbilityOnSelfEffect extends Effect {
   }
   resolve(card: Permanent) {
     card.applyAbility(this.abil, this.temp);
-    return true;
   }
 }
 
@@ -47,11 +59,10 @@ export class CreateTokenEffect extends Effect {
   }
   resolve(card: Permanent) {
     card.controller.createToken(this.token);
-    return true;
   }
 }
 
-export class AddCounterOnSelfEffect extends Effect {
+export class AddCounterEffect extends Effect {
   counter: string;
   amount = 1;
   constructor(counter: string, amount?: number) {
@@ -61,7 +72,6 @@ export class AddCounterOnSelfEffect extends Effect {
   }
   resolve(card: Permanent) {
     card.addCounter(this.counter, this.amount);
-    return true;
   }
 }
 
@@ -72,20 +82,47 @@ export class DrawCardsEffect extends Effect {
     this.amount = amount;
   }
   resolve(card: Permanent) {
-    return card.controller.drawCard(this.amount);
+    card.controller.drawCard(this.amount);
   }
 }
 
 class DestroyCardsEffect extends Effect {
   cards: Card[];
-  constructor(card: Card | Card[]) {
+  constructor(...cards: Card[]) {
     super();
-    this.cards = card instanceof Card ? [card] : card;
+    this.cards = cards;
   }
   resolve(card: Permanent) {
     for (let i of this.cards) {
       i.destroy();
     }
-    return true;
+  }
+}
+
+export class SetStatsEffect extends Effect {
+  power: number;
+  toughness: number;
+  constructor(power?: number, toughness?: number) {
+    super();
+    this.power = power;
+    this.toughness = toughness;
+  }
+  queue(card: Creature) {
+    StackManager.add(new StackEffect(this, card));
+  }
+  resolve(card: Creature) {
+    if (this.power) card.power = this.power;
+    if (this.toughness) card.toughness = this.toughness;
+  }
+}
+
+export class SetTypesEffect extends Effect {
+  types: TypeList;
+  constructor(types: string[] | TypeList) {
+    super();
+    this.types = types instanceof TypeList ? types : new TypeList(types);
+  }
+  resolve(card: Permanent) {
+    card.types = this.types;
   }
 }

@@ -11,9 +11,9 @@ import { Ability, ComputedAbility, ReachAbility } from "./ability.js";
 * It should use the `that` argument passed to it instead of `this`. Pass `this` to the parameter `that`.
 */
 export function ApplyHooks<T, U extends any[], V>(hook: new (...args: any[]) => Hook<T, U, V>, orig: (that: T, ...args: U) => V, that: T, ...args: U) {
-  for(let c of Battlefield) {
-    for(let a of c.abilities) {
-      if(a instanceof hook) {
+  for (let c of Battlefield) {
+    for (let a of c.abilities) {
+      if (a instanceof hook) {
         orig = a.apply(c, orig);
       }
     }
@@ -88,8 +88,25 @@ export class MarkAsBlockerHook extends Hook<Player, [Creature, Creature, boolean
 export class FlyingAbility extends MarkAsBlockerHook {
   constructor() {
     super((me, orig, that, card, blocking, real) => {
-      if(me.is(blocking) && !card.hasAbility(ReachAbility) && !card.hasAbility(FlyingAbility)) return false;
+      if (me.is(blocking) && !card.hasAbility(ReachAbility) && !card.hasAbility(FlyingAbility)) return false;
       return orig(that, card, blocking, real);
+    });
+  }
+}
+
+export class SelectTargetsHook extends Hook<Player, [Card, (t: any[]) => boolean, () => boolean, string, (result: any) => any, boolean], boolean> {
+  constructor(apply: (me: Permanent, orig: (that: Player, casting: Card, validate: (t: any[]) => boolean, possible: () => boolean, message: string, continuation: (result: any) => any, limitOne: boolean) => boolean, that: Player, casting: Card, validate: (t: any[]) => boolean, possible: () => boolean, message: string, continuation: (result: any) => any, limitOne: boolean) => boolean) {
+    super(apply);
+  }
+}
+
+export class HeroicAbility extends SelectTargetsHook {
+  constructor(effect: (me: Permanent, casting: Card, targets: any) => void) {
+    super((me, orig, that, casting, validate, possible, message, continuation, limitOne) => {
+      return orig(that, casting, validate, possible, message, result => {
+        continuation(result);
+        if (result.includes(me)) effect(me, casting, result);
+      }, limitOne);
     });
   }
 }

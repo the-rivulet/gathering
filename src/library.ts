@@ -1,9 +1,9 @@
 import { PermanentCard, CreatureCard, AuraCard, SpellCard } from "./card.js";
-import { SimpleActivatedAbility, TargetedActivatedAbility } from "./ability.js";
-import { AddManaEffect, CreateTokenEffect, AddCounterOnSelfEffect, ApplyAbilityOnSelfEffect } from "./effect.js";
+import { SimpleActivatedAbility, TargetedActivatedAbility, FirstStrikeAbility, VigilanceAbility, TrampleAbility } from "./ability.js";
+import { MultipleEffect, AddManaEffect, CreateTokenEffect, AddCounterEffect, ApplyAbilityEffect, SetStatsEffect, SetTypesEffect } from "./effect.js";
 import { SacrificeSelfCost, TapCost } from "./cost.js";
 import { ManaCost, ManaPool } from "./mana.js";
-import { PlayCardHook, BeginStepHook, StatsHook, ProtectionAbility } from "./hook.js";
+import { PlayCardHook, BeginStepHook, StatsHook, ProtectionAbility, FlyingAbility, HeroicAbility } from "./hook.js";
 import { Creature } from "./permanent.js";
 import { Battlefield } from "./globals.js";
 import { Step } from "./turn.js";
@@ -17,7 +17,7 @@ class TreasureTokenCard extends PermanentCard {
       undefined,
       new SimpleActivatedAbility(
         new SacrificeSelfCost(),
-        card => card.controller.getColor("Choose a color", result => new AddManaEffect({[result]: 1}).resolve(card))
+        card => card.controller.getColor("Choose a color", result => new AddManaEffect({ [result]: 1 }).resolve(card))
       )
     );
   }
@@ -45,7 +45,7 @@ export class LlanowarElvesCard extends CreatureCard {
       '{A1}{T}{EC1}Add {G}.{EA1}',
       1, 1,
       //new ManaCost({ green: 1 }),
-      new ManaCost({green: 1}),
+      new ManaCost({ green: 1 }),
       new SimpleActivatedAbility(new TapCost(), card => new AddManaEffect({ green: 1 }).resolve(card))
     );
   }
@@ -62,13 +62,13 @@ export class GiantGrowthCard extends SpellCard {
       (p, s) => Battlefield.filter(x => x instanceof Creature).length > 0,
       (self, targets) => {
         let target = targets[0] as Creature;
-        new ApplyAbilityOnSelfEffect(new StatsHook((me, orig, that, stat) => {
-          if(!me.is(that)) return orig(that, stat);
+        new ApplyAbilityEffect(new StatsHook((me, orig, that, stat) => {
+          if (!me.is(that)) return orig(that, stat);
           return orig(that, stat) + 3;
         })).resolve(target);
       },
       new ManaCost({ green: 1 })
-    )
+    );
   }
 }
 
@@ -81,8 +81,8 @@ export class ForcedAdaptationCard extends AuraCard {
       new ManaCost({ green: 1 }),
       new BeginStepHook((me, orig, that) => {
         orig(that);
-        if (that.step == Step.upkeep && that.currentPlayer == (this.attached as Creature).controller) {
-          new AddCounterOnSelfEffect('+1/+1').resolve(this.attached as Creature);
+        if (that.step == Step.upkeep && that.currentPlayer.is((this.attached as Creature).controller)) {
+          new AddCounterEffect('+1/+1').resolve(this.attached as Creature);
         }
       })
     );
@@ -103,13 +103,13 @@ class KarnLegacyReforgedCard extends CreatureCard {
       card =>
         Math.max(
           ...Battlefield.filter(
-            x => x.controller == card.controller && x.hasType('Artifact')
+            x => x.controller.is(card.controller) && x.hasType('Artifact')
           ).map(x => (x.representedCard.manaCost || new ManaCost()).value)
         ),
       card =>
         Math.max(
           ...Battlefield.filter(
-            x => x.controller == card.controller && x.hasType('Artifact')
+            x => x.controller.is(card.controller) && x.hasType('Artifact')
           ).map(x => (x.representedCard.manaCost || new ManaCost()).value)
         ),
       new ManaCost({ generic: 5 }),
@@ -136,28 +136,32 @@ class FigureOfDestinyCard extends CreatureCard {
         3 x {R/W} If {CARDNAME} is a Spirit, it becomes a 4/4 Kithkin Spirit Warrior.
         6 x {R/W}: If {CARDNAME} is a Warrior, it becomes a 8/8 Kithkin Spirit Warrior Avatar with flying and first strike.`,
       1, 1,
-      new ManaCost({choices: [[{ red: 1 }, { white: 1 }]]}),
+      new ManaCost({ choices: [[{ red: 1 }, { white: 1 }]] }),
       [
-        new SimpleActivatedAbility<Creature>(new ManaCost({choices: [[{red: 1, white: 1}]]}), card => {
-          card.power = 2; card.toughness = 2;
-          card.types = ["Kithkin", "Spirit"];
+        new SimpleActivatedAbility<Creature>(new ManaCost({ choices: [[{ red: 1, white: 1 }]] }), card => {
+          new MultipleEffect(
+            new SetStatsEffect(2, 2),
+            new SetTypesEffect(["Kithkin", "Spirit"])
+          ).queue(card);
         }),
-        new SimpleActivatedAbility<Creature>(new ManaCost({choices: [[{red: 3, white: 3}]]}), card => {
-          if(!card.hasType("Spirit")) return;
-          card.power = 4; card.toughness = 4;
-          card.types = ["Kithkin", "Spirit", "Warrior"];
+        new SimpleActivatedAbility<Creature>(new ManaCost({ choices: [[{ red: 3, white: 3 }]] }), card => {
+          if (!card.hasType("Spirit")) return;
+          new MultipleEffect(
+            new SetStatsEffect(4, 4),
+            new SetTypesEffect(["Kithkin", "Spirit", "Warrior"])
+          ).queue(card);
         }),
-        new SimpleActivatedAbility<Creature>(new ManaCost({choices: [[{red: 6, white: 6}]]}), card => {
-          if(!card.hasType("Warrior")) return;
-          card.power = 8; card.toughness = 8;
-          card.types = ["Kithkin", "Spirit", "Warrior", "Avatar"];
-          // Don't completely overwrite the card's base abilities, just apply flying and first strike
-          //card.applyAbility();
-          //card.applyAbility();
-          // TODO! implement flying & first strike
+        new SimpleActivatedAbility<Creature>(new ManaCost({ choices: [[{ red: 6, white: 6 }]] }), card => {
+          if (!card.hasType("Warrior")) return;
+          new MultipleEffect(
+            new SetStatsEffect(8, 8),
+            new SetTypesEffect(["Kithkin", "Spirit", "Warrior", "Avatar"]),
+            new ApplyAbilityEffect(new FlyingAbility()),
+            new ApplyAbilityEffect(new FirstStrikeAbility())
+          ).queue(card);
         })
       ]
-    )
+    );
   }
   makeEquivalentCopy = () => new FigureOfDestinyCard();
 }
@@ -173,8 +177,8 @@ class GeneralFerrousRokiricCard extends CreatureCard {
       [
         new ProtectionAbility(source => source.colors.length == 1),
         new PlayCardHook((me, orig, that, card, free, noCheck, force) => {
-          if (!(card.hasType("Land")) && card.colors.length >= 2 && this.representedPermanent) {
-            new CreateTokenEffect(new CreatureCard("Golem Token", ["Creature", "Token", "Golem"], "", 4, 4)).resolve(this.representedPermanent);
+          if (!(card.hasType("Land")) && card.colors.length >= 2) {
+            new CreateTokenEffect(new CreatureCard("Golem Token", ["Creature", "Token", "Golem"], "", 4, 4)).queue(this.representedPermanent);
           }
           return orig(that, card, free, noCheck, force);
         }),
@@ -182,6 +186,35 @@ class GeneralFerrousRokiricCard extends CreatureCard {
     );
   }
   makeEquivalentCopy = () => new GeneralFerrousRokiricCard();
+}
+
+class AnaxAndCymedeCard extends CreatureCard {
+  constructor() {
+    super(
+      'Anax and Cymede',
+      ['Creature', 'Legendary', 'Human', 'Soldier'],
+      'First strike, vigilance. Heroic ~ Creatures you control get +1/+1 and gain trample until end of turn.',
+      3, 2,
+      new ManaCost({ red: 1, white: 1, colorless: 1 }),
+      [
+        new FirstStrikeAbility(),
+        new VigilanceAbility(),
+        new HeroicAbility((me, casting, targets) => {
+          for (let i of Battlefield.filter(x => x.controller.is(me.controller))) {
+            if (i instanceof Creature) {
+              new MultipleEffect(
+                new ApplyAbilityEffect(new StatsHook((me, orig, that, stat) => {
+                  if (!me.is(that)) return orig(that, stat);
+                  return orig(that, stat) + 3;
+                })),
+                new ApplyAbilityEffect(new TrampleAbility())
+              ).queue(i);
+            }
+          }
+        })
+      ]
+    );
+  }
 }
 
 // TODO: rest of deck

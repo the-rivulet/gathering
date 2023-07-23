@@ -18,7 +18,7 @@ let textAsHTML = function (text: string) {
     .replaceAll("{Q}", "<img src='./assets/" + (Settings.slugcatMana ? "slugcats/touchleft.png" : "untap.svg") + "' class='" + (Settings.slugcatMana ? "slugcat" : "symbol") + "'>");
   let slugcatList = { "G": "saint", "W": "gourmand", "U": "rivulet", "R": "hunter", "B": "nightcat", "C": "survivor" };
   let colorList = { "G": "green", "W": "white", "U": "blue", "R": "red", "B": "black", "C": "colorless" };
-  // TODO: do I need these UUIDs?
+  // do I need these UUIDs?
   for (let i in colorList) {
     let uuid = Math.random().toString().slice(2);
     t = t.replaceAll("{" + i + "}", "<img id='" + uuid + "' src='./assets/" + (Settings.slugcatMana ? "slugcats" : "mana") + "/" + (Settings.slugcatMana ? slugcatList[i] : colorList[i]) + ".png' class='" + (Settings.slugcatMana ? "slugcat" : "symbol") + "'>");
@@ -28,7 +28,7 @@ let textAsHTML = function (text: string) {
     t = t.replaceAll("{" + i + "}", "<img id='" + uuid + "' " + i + "' src='./assets/mana/" + i + ".svg' class='symbol'>");
   }
   return t;
-}
+};
 
 let mousex: number, mousey: number;
 function mouse(e?: any) {
@@ -87,7 +87,7 @@ function renderRow(cards: Card[], offset: number, valids: Card[] = []) {
     if (tapped || ss || attacking || blocking?.length) {
       tx.innerHTML += `<hline></hline>${tapped ? "Tapped" : ""}${tapped && ss ? ", " : ""}${ss ? "Summoning sickness" : ""}${ss && (attacking || blocking.length) ? ", " : ""}${attacking ? "Attacking" : blocking.length ? "Blocking " + blocking.map(x => x.name).join(", ") : ""}`;
     }
-    let add = (t: string) => { tx.innerHTML += (tx.innerHTML.includes("<hline>") ? "<br/>" : "<hline></hline>") + t; }
+    let add = (t: string) => { tx.innerHTML += (tx.innerHTML.includes("<hline>") ? "<br/>" : "<hline></hline>") + t; };
     if (TurnManager.ongoingSelection) {
       add("Click to add or remove this card as a target.");
     } else if (card.landPlayable(card.owner)) {
@@ -177,7 +177,7 @@ function renderRow(cards: Card[], offset: number, valids: Card[] = []) {
               result => {
                 creature.markAsBlocker(result);
               },
-              true)
+              true);
           } else if (blocking.length) {
             for (let attacker of blocking) {
               creature.controller.unmarkAsBlocker(creature, attacker);
@@ -191,14 +191,14 @@ function renderRow(cards: Card[], offset: number, valids: Card[] = []) {
               a.activate(c);
               break;
             }
-            // TODO something for TargetedActivatedAbility 
+            // TODO: something for TargetedActivatedAbility 
           }
         }
       }
       // This will (probably) be needed, why not?
       renderBattlefield();
       renderStack();
-    }
+    };
     card.click = onclick;
     tt.onclick = onclick;
     // Append
@@ -243,7 +243,7 @@ function renderBattlefield() {
     let elem = getId("playerinfo" + i);
     elem.innerHTML = `
     ${p.name}<br/>
-    ${TurnManager.defendingPlayer == p && TurnManager.step == Step.declare_blockers && TurnManager.currentPlayer.attackers.length ? "(" + (p.lifeTotal - TurnManager.currentPlayer.attackers.reduce((a, b) => a + b.power, 0)) + " ← ) " : ""}${p.lifeTotal}/${p.startingLifeTotal} life<br/>`;
+    ${p.is(TurnManager.defendingPlayer) && TurnManager.step == Step.declare_blockers && TurnManager.currentPlayer.attackers.length ? "(" + (p.lifeTotal - TurnManager.currentPlayer.attackers.reduce((a, b) => a + b.power, 0)) + " ← ) " : ""}${p.lifeTotal}/${p.startingLifeTotal} life<br/>`;
     elem.innerHTML += p.manaPool.asHTML;
     // Click on a playerinfo to add/remove
     elem.onclick = function (e) {
@@ -257,7 +257,7 @@ function renderBattlefield() {
         }
         updateSelection(player);
       }
-    }
+    };
   }
   // Piles
   for (let p of TurnManager.playerList) {
@@ -381,12 +381,12 @@ function renderBattlefield() {
               }
               updateSelection(player);
             }
-          }
+          };
           getId("pv-inner").appendChild(tt);
           card.uiElement = tt;
         }
       }
-    }
+    };
     gy.onclick = expand("gy");
     ex.onclick = expand("ex");
   }
@@ -552,7 +552,7 @@ function chooseOptions(player: Player, descriptions: string[], howMany = 1, mess
       } else {
         getId("optsubmit").classList.remove("submittable");
       }
-    }
+    };
     getId("optlist").appendChild(el);
   }
   getId("optsubmit").onclick = function () {
@@ -566,7 +566,7 @@ function chooseOptions(player: Player, descriptions: string[], howMany = 1, mess
     getId("pass").style.display = "block";
     chosenOptions = [];
     renderBattlefield();
-  }
+  };
 }
 
 let selectedSymbols: SimpleManaObject = {};
@@ -593,7 +593,7 @@ function payComplexCosts(player: Player, manaPool: ManaPool, generic: number, ch
     } else {
       getId("pccsubmit").classList.remove("submittable");
     }
-  }
+  };
   let updateGenerics = function () {
     let pay = ManaUtils.simplePay(manaPool, selectedSymbols);
     console.log(pay);
@@ -606,7 +606,7 @@ function payComplexCosts(player: Player, manaPool: ManaPool, generic: number, ch
     }
     let gen = generic + (selectedSymbols.generic || 0) - pay.remain.simplified.generic;
     if (gen <= 0 || Object.keys(pay.remain.simplified).filter(x => x != "generic").length <= 1) {
-      if(Object.keys(pay.remain.simplified).filter(x => x != "generic").length == 1) {
+      if (Object.keys(pay.remain.simplified).filter(x => x != "generic").length == 1) {
         forGeneric = pay.remain.simplified;
         forGeneric.generic = 0;
       }
@@ -627,20 +627,20 @@ function payComplexCosts(player: Player, manaPool: ManaPool, generic: number, ch
         let m = JSON.parse(i.getAttribute("mana_type"));
         console.log(m);
         if (i.classList.contains("selectedmana")) {
-            if (forGeneric[m]) forGeneric[m]--;
-            else throw new Error("expected " + JSON.stringify(forGeneric) + " to contain some " + m);
+          if (forGeneric[m]) forGeneric[m]--;
+          else throw new Error("expected " + JSON.stringify(forGeneric) + " to contain some " + m);
           genericsSelected--;
           i.classList.remove("selectedmana");
         } else {
-            if (forGeneric[m]) forGeneric[m]++;
-            else forGeneric[m] = 1;
+          if (forGeneric[m]) forGeneric[m]++;
+          else forGeneric[m] = 1;
           genericsSelected++;
           i.classList.add("selectedmana");
         }
         updateSubmitter();
-      }
+      };
     }
-  }
+  };
   updateGenerics();
   for (let i of document.getElementsByClassName("clickablemana") as HTMLCollectionOf<HTMLElement>) {
     i.onclick = function () {
@@ -667,7 +667,7 @@ function payComplexCosts(player: Player, manaPool: ManaPool, generic: number, ch
       // Check the submit button
       updateGenerics();
       updateSubmitter();
-    }
+    };
   }
   getId("pccsubmit").onclick = function () {
     if (!getId("pccsubmit").classList.contains("submittable")) return;
@@ -680,7 +680,7 @@ function payComplexCosts(player: Player, manaPool: ManaPool, generic: number, ch
     getId("pass").style.display = "block";
     selectedSymbols = {};
     renderBattlefield();
-  }
+  };
 }
 
 function passPriority() {
@@ -740,7 +740,7 @@ document.onkeydown = function (e) {
     }
     e.preventDefault();
   }
-}
+};
 
 export let UI = {
   getId: getId,

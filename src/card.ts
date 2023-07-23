@@ -33,7 +33,7 @@ export abstract class Card {
   constructor(name: string, types: string[], text = '', mana?: ManaCost) {
     this.name = name;
     this.types = new TypeList(types);
-    if(!this.types.main.length) throw new Error("Created card with no major types!");
+    if (!this.types.main.length) throw new Error("Created card with no major types!");
     this.text = text;
     this.manaCost = mana;
     if (this.manaCost) this.manaCost.card = this;
@@ -71,8 +71,8 @@ export abstract class Card {
     return (
       (auto || this.zone == Zone.hand) &&
       this.manaCost &&
-      (auto || (this.owner && this.owner == by)) &&
-      (auto || this.hasType("Instant") || this.owner == TurnManager.currentPlayer) &&
+      (auto || (this.owner && this.owner.is(by))) &&
+      (auto || this.hasType("Instant") || this.owner.is(TurnManager.currentPlayer)) &&
       (auto || this.hasType("Instant") || TurnManager.step == Step.precombat_main || TurnManager.step == Step.postcombat_main) &&
       (free || by.manaPool.pay(this, by, false))
     );
@@ -80,11 +80,11 @@ export abstract class Card {
   landPlayable(by: Player, auto = false, free = false) {
     return (
       (auto || this.zone == Zone.hand) &&
-      (auto || this.owner == TurnManager.currentPlayer) &&
+      (auto || this.owner.is(TurnManager.currentPlayer)) &&
       this.hasType("Land") &&
       (auto || TurnManager.step == Step.precombat_main || TurnManager.step == Step.postcombat_main) &&
       (auto || free || by.landPlays)
-    )
+    );
   }
   play() {
     this.owner?.play(this);

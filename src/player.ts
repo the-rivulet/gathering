@@ -3,7 +3,7 @@ import { ManaPool, SimpleManaObject } from "./mana.js";
 import { Creature, Permanent } from "./permanent.js";
 import { Battlefield, TurnManager, StackManager } from "./globals.js";
 import { StackCard } from "./stack.js";
-import { ApplyHooks, HasValidTargetsHook, PlayCardHook, CheckTargetsHook, MarkAsBlockerHook } from "./hook.js";
+import { ApplyHooks, HasValidTargetsHook, PlayCardHook, CheckTargetsHook, MarkAsBlockerHook, SelectTargetsHook } from "./hook.js";
 import { TapCost } from "./cost.js";
 import { ZoneManager, Zone } from "./zone.js";
 import { Step } from "./turn.js";
@@ -96,10 +96,12 @@ export class Player {
    * feel free to pass `undefined` to `casting` if you aren't casting a card, idk why I put it as the first argument lol
    */
   selectTargets(casting: Card, validate: (t: any[]) => boolean, possible: () => boolean, message: string, continuation: (result: any) => any, limitOne = false) {
-    if (!possible()) return false;
-    this.selectionData = new SelectionData(casting, validate, possible, message, continuation, limitOne);
-    UI.selectTargets(this);
-    return true;
+    return ApplyHooks(SelectTargetsHook, (that, casting, validate, possible, message, continuation, limitOne) => {
+      if (!possible()) return false;
+      that.selectionData = new SelectionData(casting, validate, possible, message, continuation, limitOne);
+      UI.selectTargets(that);
+      return true;
+    }, this, casting, validate, possible, message, continuation, limitOne);
   }
   playLand(card: PermanentCard, free = false, auto = false) {
     if (!card.landPlayable(this, auto, free)) return false;
@@ -128,7 +130,7 @@ export class Player {
       StackManager.add(new StackCard(card, targets));
       UI.renderStack();
       return true;
-    }
+    };
     if (!free) this.manaPool.pay(card, this);
     this.moveCardTo(card, Zone.stack);
     if (forceTargets) return doIt(forceTargets);
@@ -154,7 +156,7 @@ export class Player {
       StackManager.add(new StackCard(card, targets));
       UI.renderStack();
       return true;
-    }
+    };
     if (!free) this.manaPool.pay(card, this);
     this.moveCardTo(card, Zone.stack);
     if (forceTarget) return doIt([forceTarget]);
@@ -214,9 +216,9 @@ export class Player {
   }
   markAsBlocker(card: Creature, blocking?: Creature, real = true) {
     return ApplyHooks(MarkAsBlockerHook, (that, card, blocking, real) => {
-      if (blocking && (blocking.controller == that || !blocking.attacking)) return false;
+      if (blocking && (that.is(blocking.controller) || !blocking.attacking)) return false;
       if (card.controller != that || TurnManager.step != Step.declare_blockers || TurnManager.defendingPlayer != that || card.tapped) return false;
-      if (card.blocking.length) return false; // TODO: make this its own function and add a hook
+      if (card.blocking.length) return false;
       if (blocking && real) card.blocking.push(blocking);
       return true;
     }, this, card, blocking, real);

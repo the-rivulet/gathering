@@ -1,7 +1,7 @@
 import type { ManaCost } from "./mana.js";
 import type { Player } from "./player.js";
 import { Card, PermanentCard, CreatureCard, TypeList } from "./card.js";
-import { Ability, ComputedAbility, EmptyAbility } from "./ability.js";
+import { Ability, ComputedAbility, FirstStrikeAbility, DoubleStrikeAbility } from "./ability.js";
 import { Battlefield } from "./globals.js";
 import { ApplyHooks, DestroyPermanentHook, StatsHook } from "./hook.js";
 import { Zone } from "./zone.js";
@@ -174,10 +174,19 @@ export class Creature extends Permanent {
   unmarkAsBlocker(blocking?: Creature, real = true) {
     return this.controller.unmarkAsBlocker(this, blocking, real);
   }
-  takeDamage(source: Card | Permanent, amount: number | (() => number), combat = false) {
+  get combatStat(): "power" | "toughness" {
+    return "power";
+  }
+  dealCombatDamage(target: Creature) {
+    // First strike and double strike are a bit special.
+    if (this.hasAbility(DoubleStrikeAbility)) target.takeDamage(this, this.power, true, !target.hasAbility(FirstStrikeAbility));
+    target.takeDamage(this, this.power, true, !this.hasAbility(DoubleStrikeAbility) && !target.hasAbility(FirstStrikeAbility));
+  }
+  takeDamage(source: Card | Permanent, amount: number | (() => number), combat = false, destroy?: boolean) {
+    if (!destroy) destroy = !combat;
     let a = typeof amount == 'number' ? amount : amount();
     this.damage += a;
-    if (this.damage >= this.toughness) this.destroy();
+    if (!destroy && this.damage >= this.toughness) this.destroy();
   }
   removeDamage(amount: number = Infinity) {
     this.damage = Math.max(0, this.damage - amount);

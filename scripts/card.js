@@ -67,14 +67,14 @@ export class Card {
     castable(by, auto = false, free = false) {
         return ((auto || this.zone == Zone.hand) &&
             this.manaCost &&
-            (auto || (this.owner && this.owner == by)) &&
-            (auto || this.hasType("Instant") || this.owner == TurnManager.currentPlayer) &&
+            (auto || (this.owner && this.owner.is(by))) &&
+            (auto || this.hasType("Instant") || this.owner.is(TurnManager.currentPlayer)) &&
             (auto || this.hasType("Instant") || TurnManager.step == Step.precombat_main || TurnManager.step == Step.postcombat_main) &&
             (free || by.manaPool.pay(this, by, false)));
     }
     landPlayable(by, auto = false, free = false) {
         return ((auto || this.zone == Zone.hand) &&
-            (auto || this.owner == TurnManager.currentPlayer) &&
+            (auto || this.owner.is(TurnManager.currentPlayer)) &&
             this.hasType("Land") &&
             (auto || TurnManager.step == Step.precombat_main || TurnManager.step == Step.postcombat_main) &&
             (auto || free || by.landPlays));

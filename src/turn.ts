@@ -1,4 +1,5 @@
 import type { Player } from "./player.js";
+import { VigilanceAbility, TrampleAbility } from "./ability.js";
 import { Battlefield, StackManager, TurnManager } from "./globals.js";
 import { Creature } from "./permanent.js";
 import { TapCost } from "./cost.js";
@@ -49,7 +50,7 @@ export class TurnManagerClass {
     ApplyHooks(BeginStepHook, that => {
       // Trigger certain effects based on what step just started
       if (that.step == Step.untap) {
-        for (let i of Battlefield.filter(x => x.controller == that.currentPlayer)) {
+        for (let i of Battlefield.filter(x => x.controller.is(that.currentPlayer))) {
           i.tapped = false;
           if (i instanceof Creature) i.summoningSickness = false;
         }
@@ -77,7 +78,7 @@ export class TurnManagerClass {
             )[0];
         }
         for (let i of that.currentPlayer.attackers) {
-          new TapCost(true).pay(i, true);
+          if (!i.hasAbility(VigilanceAbility)) new TapCost(true).pay(i, true);
         }
       } else if (that.step == Step.deal_damage) {
         for (let i of that.currentPlayer.attackers) {
@@ -105,7 +106,7 @@ export class TurnManagerClass {
               bs2 = bs;
             }
             // Deal damage to only the first one if no trample, carry over if trample.
-            /*if (i.abilities.filter(x => x instanceof TrampleAbility).length) {
+            if (i.hasAbility(TrampleAbility)) {
               let p = i.power; let n = 0;
               while (p && n < bs2.length) {
                 let v = Math.min(bs2[n].toughness, p);
@@ -113,19 +114,20 @@ export class TurnManagerClass {
                 p -= v;
                 n++;
               }
-              if(p) that.defendingPlayer.takeDamage(i, p, true);
-            } else {*/
-            bs2[0].takeDamage(i, i.power, true);
-            //}
+              if (p) that.defendingPlayer.takeDamage(i, p, true);
+            } else {
+              i.dealCombatDamage(bs2[0]);
+            }
           } else {
             // Unblocked. Deal damage.
             that.defendingPlayer.takeDamage(i, i.power, true);
           }
-          i.attacking = false; // Remove "attacker" status now that it is no longer needed
         }
-        // Remove "blocker" status now that it is no longer needed
-        for (let b of Battlefield.filter(x => x instanceof Creature)) {
-          (b as Creature).blocking = [];
+        that.stateBasedActions(); // In case something died
+        // Remove "attacker" and "blocker" status now that they are no longer needed
+        for (let i of Battlefield.filter(x => x instanceof Creature)) {
+          (i as Creature).attacking = false;
+          (i as Creature).blocking = [];
         }
       } else if (that.step == Step.draw) {
         that.currentPlayer.drawCard();
@@ -135,7 +137,7 @@ export class TurnManagerClass {
   advance(targetStep?: Step) {
     // Drain mana pools
     for (let p of this.playerList) {
-      //p.manaPool = ManaFromSymbols(p.manaPool.symbols.filter(x => x.keep));
+      p.manaPool.mana = p.manaPool.mana.filter(x => x.keep);
     }
     // Advance to the next step
     let nextStep = this.stepList[this.stepIndex + 1];
@@ -200,5 +202,10 @@ export class TurnManagerClass {
       that.endedPhase = false;
     }
     that.advanceIfReady();
+  }
+  stateBasedActions() {
+    for (let i of Battlefield) {
+      if (i instanceof Creature && i.damage >= i.toughness) i.destroy();
+    }
   }
 }

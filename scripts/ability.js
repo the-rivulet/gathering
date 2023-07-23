@@ -47,7 +47,18 @@ export class TargetedActivatedAbility extends ActivatedAbility {
 export class EmptyAbility extends Ability {
 }
 export class ReachAbility extends EmptyAbility {
-    // This is so stupid
+    constructor() { super(); }
+}
+export class FirstStrikeAbility extends EmptyAbility {
+    constructor() { super(); }
+}
+export class DoubleStrikeAbility extends EmptyAbility {
+    constructor() { super(); }
+}
+export class VigilanceAbility extends EmptyAbility {
+    constructor() { super(); }
+}
+export class TrampleAbility extends EmptyAbility {
     constructor() { super(); }
 }
 // This should use hooking

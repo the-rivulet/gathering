@@ -142,7 +142,7 @@ export class ManaPool {
       player.payComplexCosts(this, cost.required.generic || 0, decisions, (choices, forGeneric) => {
         this.mana = simplePay(this, choices).remain.mana;
         this.mana = simplePay(this, forGeneric).remain.mana;
-        this.mana = simplePay(this, {generic: choices.generic}, true).remain.mana;
+        this.mana = simplePay(this, { generic: choices.generic }, true).remain.mana;
       });
     }
 
@@ -190,7 +190,7 @@ function asString(mana: SimpleManaObject, withBraces = false) {
 function simplePay(mana: ManaPool, cost: SimpleManaObject, tryPayingGeneric = false) {
   let pool = new ManaPool(mana.mana);
   let keys = Object.keys(cost);
-  if(!tryPayingGeneric) keys = keys.filter(x => x != 'generic');
+  if (!tryPayingGeneric) keys = keys.filter(x => x != 'generic');
   for (let col of keys) {
     let payables = pool.mana.filter(x => x[col] && x[col] > 0);
     let toPay: number = cost[col];
@@ -208,4 +208,4 @@ function simplePay(mana: ManaPool, cost: SimpleManaObject, tryPayingGeneric = fa
 export let ManaUtils = {
   isSimple: isSimple,
   simplePay: simplePay
-}
+};

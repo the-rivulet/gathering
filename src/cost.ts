@@ -78,17 +78,17 @@ class SacrificeTargetsCost extends TargetedCost {
   }
   pay(card: Permanent, targets: any[]) {
     for (let i of targets) {
-      if(i instanceof Permanent) i.sacrifice();
+      if (i instanceof Permanent) i.sacrifice();
     }
     return true;
   }
   async payPlayer(player: Player, spend = true) {
-    if (!this.canPay(Battlefield.filter(x => x.controller == player))) return false;
+    if (!this.canPay(Battlefield.filter(x => x.controller.is(player)))) return false;
     if (spend) {
       player.selectTargets(
         undefined,
         x => !x.filter(y => !(y instanceof Permanent) || y.controller != player).length && this.validate((x as Permanent[])),
-        () => this.canPay(Battlefield.filter(x => x.controller == player)),
+        () => this.canPay(Battlefield.filter(x => x.controller.is(player))),
         "Select something to sacrifice",
         result => {
           for (let i of (result as Permanent[])) i.sacrifice();

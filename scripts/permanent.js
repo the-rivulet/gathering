@@ -1,5 +1,5 @@
 import { PermanentCard, TypeList } from "./card.js";
-import { ComputedAbility } from "./ability.js";
+import { ComputedAbility, FirstStrikeAbility, DoubleStrikeAbility } from "./ability.js";
 import { Battlefield } from "./globals.js";
 import { ApplyHooks, DestroyPermanentHook, StatsHook } from "./hook.js";
 import { Zone } from "./zone.js";
@@ -175,10 +175,21 @@ export class Creature extends Permanent {
     unmarkAsBlocker(blocking, real = true) {
         return this.controller.unmarkAsBlocker(this, blocking, real);
     }
-    takeDamage(source, amount, combat = false) {
+    get combatStat() {
+        return "power";
+    }
+    dealCombatDamage(target) {
+        // First strike and double strike are a bit special.
+        if (this.hasAbility(DoubleStrikeAbility))
+            target.takeDamage(this, this.power, true, !target.hasAbility(FirstStrikeAbility));
+        target.takeDamage(this, this.power, true, !this.hasAbility(DoubleStrikeAbility) && !target.hasAbility(FirstStrikeAbility));
+    }
+    takeDamage(source, amount, combat = false, destroy) {
+        if (!destroy)
+            destroy = !combat;
         let a = typeof amount == 'number' ? amount : amount();
         this.damage += a;
-        if (this.damage >= this.toughness)
+        if (!destroy && this.damage >= this.toughness)
             this.destroy();
     }
     removeDamage(amount = Infinity) {

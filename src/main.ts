@@ -11,13 +11,13 @@ let getPlayer = () => {
   let p = new Player("unnamed", [new ForestCard(), new LlanowarElvesCard(), new ForcedAdaptationCard(), new GiantGrowthCard()]);
   p.name = "Player" + p.uuid.toString().slice(2, 5);
   return p;
-}
+};
 
 export function Initialize(...plist: Player[]) {
   // Re-initialize all global variables.
   UpdateGlobals([], new TurnManagerClass(...plist), new StackManagerClass());
   // Draw some cards
-  for(let i of TurnManager.playerList) i.drawCard(1);
+  for (let i of TurnManager.playerList) i.drawCard(1);
   // Set proper phase
   TurnManager.advanceIfReady();
   // Render
@@ -36,7 +36,7 @@ export function RunTests() {
     } else {
       console.warn("Assertion '" + msg + "' failed: " + v1 + " does not equal " + v2 + ".");
     }
-  }
+  };
   console.log("Beginning tests.");
   let p1 = getPlayer();
   let p2 = getPlayer();

@@ -14,7 +14,7 @@ let textAsHTML = function (text) {
         .replaceAll("{Q}", "<img src='./assets/" + (Settings.slugcatMana ? "slugcats/touchleft.png" : "untap.svg") + "' class='" + (Settings.slugcatMana ? "slugcat" : "symbol") + "'>");
     let slugcatList = { "G": "saint", "W": "gourmand", "U": "rivulet", "R": "hunter", "B": "nightcat", "C": "survivor" };
     let colorList = { "G": "green", "W": "white", "U": "blue", "R": "red", "B": "black", "C": "colorless" };
-    // TODO: do I need these UUIDs?
+    // do I need these UUIDs?
     for (let i in colorList) {
         let uuid = Math.random().toString().slice(2);
         t = t.replaceAll("{" + i + "}", "<img id='" + uuid + "' src='./assets/" + (Settings.slugcatMana ? "slugcats" : "mana") + "/" + (Settings.slugcatMana ? slugcatList[i] : colorList[i]) + ".png' class='" + (Settings.slugcatMana ? "slugcat" : "symbol") + "'>");
@@ -203,7 +203,7 @@ function renderRow(cards, offset, valids = []) {
                             a.activate(c);
                             break;
                         }
-                        // TODO something for TargetedActivatedAbility 
+                        // TODO: something for TargetedActivatedAbility 
                     }
                 }
             }
@@ -263,7 +263,7 @@ function renderBattlefield() {
         let elem = getId("playerinfo" + i);
         elem.innerHTML = `
     ${p.name}<br/>
-    ${TurnManager.defendingPlayer == p && TurnManager.step == Step.declare_blockers && TurnManager.currentPlayer.attackers.length ? "(" + (p.lifeTotal - TurnManager.currentPlayer.attackers.reduce((a, b) => a + b.power, 0)) + " ← ) " : ""}${p.lifeTotal}/${p.startingLifeTotal} life<br/>`;
+    ${p.is(TurnManager.defendingPlayer) && TurnManager.step == Step.declare_blockers && TurnManager.currentPlayer.attackers.length ? "(" + (p.lifeTotal - TurnManager.currentPlayer.attackers.reduce((a, b) => a + b.power, 0)) + " ← ) " : ""}${p.lifeTotal}/${p.startingLifeTotal} life<br/>`;
         elem.innerHTML += p.manaPool.asHTML;
         // Click on a playerinfo to add/remove
         elem.onclick = function (e) {

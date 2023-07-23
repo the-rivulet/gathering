@@ -270,7 +270,9 @@ hline {
   grid-area: c;
 }
 
-button:not(.pushed):not(.submitter:not(.submittable)), .clickablemana, .clickablegen {
+button:not(.pushed):not(.submitter:not(.submittable)),
+.clickablemana,
+.clickablegen {
   cursor: pointer;
 }
 

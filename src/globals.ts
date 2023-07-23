@@ -9,9 +9,9 @@ export let TurnManager: TurnManagerClass;
 export let StackManager: StackManagerClass;
 
 export function UpdateGlobals(bf: Permanent[] = [], tm?: TurnManagerClass, sm?: StackManagerClass) {
-    Battlefield = bf;
-    TurnManager = tm;
-    StackManager = sm;
+  Battlefield = bf;
+  TurnManager = tm;
+  StackManager = sm;
 }
 
 export let Settings = {

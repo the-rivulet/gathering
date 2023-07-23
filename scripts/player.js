@@ -3,7 +3,7 @@ import { ManaPool } from "./mana.js";
 import { Creature, Permanent } from "./permanent.js";
 import { Battlefield, TurnManager, StackManager } from "./globals.js";
 import { StackCard } from "./stack.js";
-import { ApplyHooks, HasValidTargetsHook, PlayCardHook, CheckTargetsHook, MarkAsBlockerHook } from "./hook.js";
+import { ApplyHooks, HasValidTargetsHook, PlayCardHook, CheckTargetsHook, MarkAsBlockerHook, SelectTargetsHook } from "./hook.js";
 import { TapCost } from "./cost.js";
 import { ZoneManager, Zone } from "./zone.js";
 import { Step } from "./turn.js";
@@ -97,11 +97,13 @@ export class Player {
      * feel free to pass `undefined` to `casting` if you aren't casting a card, idk why I put it as the first argument lol
      */
     selectTargets(casting, validate, possible, message, continuation, limitOne = false) {
-        if (!possible())
-            return false;
-        this.selectionData = new SelectionData(casting, validate, possible, message, continuation, limitOne);
-        UI.selectTargets(this);
-        return true;
+        return ApplyHooks(SelectTargetsHook, (that, casting, validate, possible, message, continuation, limitOne) => {
+            if (!possible())
+                return false;
+            that.selectionData = new SelectionData(casting, validate, possible, message, continuation, limitOne);
+            UI.selectTargets(that);
+            return true;
+        }, this, casting, validate, possible, message, continuation, limitOne);
     }
     playLand(card, free = false, auto = false) {
         if (!card.landPlayable(this, auto, free))
@@ -226,12 +228,12 @@ export class Player {
     }
     markAsBlocker(card, blocking, real = true) {
         return ApplyHooks(MarkAsBlockerHook, (that, card, blocking, real) => {
-            if (blocking && (blocking.controller == that || !blocking.attacking))
+            if (blocking && (that.is(blocking.controller) || !blocking.attacking))
                 return false;
             if (card.controller != that || TurnManager.step != Step.declare_blockers || TurnManager.defendingPlayer != that || card.tapped)
                 return false;
             if (card.blocking.length)
-                return false; // TODO: make this its own function and add a hook
+                return false;
             if (blocking && real)
                 card.blocking.push(blocking);
             return true;

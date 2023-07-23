@@ -78,3 +78,19 @@ export class FlyingAbility extends MarkAsBlockerHook {
         });
     }
 }
+export class SelectTargetsHook extends Hook {
+    constructor(apply) {
+        super(apply);
+    }
+}
+export class HeroicAbility extends SelectTargetsHook {
+    constructor(effect) {
+        super((me, orig, that, casting, validate, possible, message, continuation, limitOne) => {
+            return orig(that, casting, validate, possible, message, result => {
+                continuation(result);
+                if (result.includes(me))
+                    effect(me, casting, result);
+            }, limitOne);
+        });
+    }
+}
