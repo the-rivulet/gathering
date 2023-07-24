@@ -94,7 +94,7 @@ class KarnLegacyReforgedCard extends CreatureCard {
     super(
       "Karn, Legacy Reforged",
       ["Creature", "Artifact", "Legendary", "Golem"],
-      `{CARDNAME}"s power and toughness are each equal to the greatest mana value among artifacts you control.
+      `{CARDNAME}'s power and toughness are each equal to the greatest mana value among artifacts you control.
         At the beginning of your upkeep, add {C} for each artifact you control.
         This mana can't be spent to cast nonartifact spells.
         Until end of turn, you don't lose this mana as steps and phases end.`,
@@ -244,7 +244,7 @@ class IroasGodOfVictoryCard extends CreatureCard {
     super(
       "Iroas, God of Victory",
       ["Creature", "Enchantment", "Legendary", "God"],
-      `Indestructible. As long as your devotion to red and white is less than seven, Iroas isn't a creature.
+      `Indestructible. As long as your devotion to red and white is less than seven, {CARDNAME} isn't a creature.
       Creatures you control have menace.
       Prevent all damage that would be dealt to attacking creatures you control.`,
       7, 4,
@@ -311,7 +311,7 @@ class ZadaHedronGrinderCard extends CreatureCard {
     super(
       "Zada, Hedron Grinder",
       ["Creature", "Legendary", "Goblin", "Ally"],
-      `Whenever you cast an instant or sorcery spell that targets only Zada, Hedron Grinder,
+      `Whenever you cast an instant or sorcery spell that targets only {CARDNAME},
       copy that spell for each other creature you control that the spell could target.
       Each copy targets a different one of those creatures.`,
       3, 3,
@@ -356,7 +356,7 @@ export class LightningBoltCard extends SimpleSpellCard<Creature | Player | Plane
     super(
       "Lightning Bolt",
       ["Instant"],
-      "Lightning Bolt deals 3 damage to any target.",
+      "{CARDNAME} deals 3 damage to any target.",
       (self, target) => { target.takeDamage(self, 3); },
       new ManaCost({ red: 1 })
     );
@@ -368,7 +368,7 @@ export class RecklessRageCard extends SpellCard {
     super(
       "Reckless Rage",
       ["Instant"],
-      "Reckless Rage deals 4 damage to target creature you don't control and 2 damage to target creature you control.",
+      "{CARDNAME} deals 4 damage to target creature you don't control and 2 damage to target creature you control.",
       (self, targets) => targets.length == 2 && targets[0] instanceof Creature && !targets[0].controller.is(self.controller) && targets[1] instanceof Creature && targets[1].controller.is(self.controller),
       (self, field) => field.filter(x => x instanceof Creature && !x.controller.is(self.controller)).length > 0 && field.filter(x => x instanceof Creature && x.controller.is(self.controller)).length > 0,
       (self, targets) => {
@@ -409,6 +409,18 @@ export class BorosCharmCard extends SpellCard {
           }
         });
       }
+    );
+  }
+}
+
+export class LightningHelixCard extends SimpleSpellCard<Creature | Player | Planeswalker> {
+  constructor() {
+    super(
+      "Lightning Helix",
+      ["Instant"],
+      "{CARDNAME} deals 3 damage to any target and you gain 3 life.",
+      (self, target) => { target.takeDamage(self, 3); self.controller.gainLife(self, 3); },
+      new ManaCost({ red: 1, white: 1 })
     );
   }
 }
