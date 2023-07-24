@@ -15,7 +15,7 @@ interface StackEffect {
 }
 
 function isCard(item: StackCard | StackEffect): item is StackCard {
-  return 'card' in item;
+  return "card" in item;;
 }
 
 export class StackManagerClass {

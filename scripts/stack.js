@@ -1,6 +1,7 @@
 import { TurnManager, Settings } from "./globals.js";
 function isCard(item) {
-    return 'card' in item;
+    return "card" in item;
+    ;
 }
 export class StackManagerClass {
     stack = [];

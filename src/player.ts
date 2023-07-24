@@ -71,7 +71,7 @@ export class Player {
     if (card.zone == to) return false;
     if (card.owner != this) return false;
     if (this.zones[card.zone] && !this.zones[card.zone].includes(card))
-      throw new Error('Card is not in expected zone!');
+      throw new Error("Card is not in expected zone!");
     this.zones[card.zone]?.splice(this.zones[card.zone].indexOf(card), 1);
     this.zones[to]?.push(card);
     card.zone = to;
@@ -173,7 +173,7 @@ export class Player {
   }
   async play(card: Card, free = false, noCheck = false, forceTargets?: any[]) {
     ApplyHooks(PlayCardHook, (that, card, free, noCheck, forceTargets) => {
-      if (card.hasType('Land') && card instanceof PermanentCard) return that.playLand(card, free, noCheck);
+      if (card.hasType("Land") && card instanceof PermanentCard) return that.playLand(card, free, noCheck);
       else if (card instanceof AuraCard)
         return that.castAura(card, forceTargets ? forceTargets[0] : undefined, free, noCheck);
       else if (card instanceof PermanentCard)
@@ -233,7 +233,7 @@ export class Player {
   takeDamage(source: Card | Permanent, amount: number | (() => number), combat = false) {
     ApplyHooks(TakeDamageHook, (that, source, amount, combat, destroy) => {
       if (!(that instanceof Player)) return;
-      let a = typeof amount == 'number' ? amount : amount();
+      let a = typeof amount == "number" ? amount : amount();;
       that.lifeTotal -= a;
     }, this, source, amount, combat, false);
   }
@@ -264,7 +264,7 @@ export class Player {
     return colors.map(color => this.zones.battlefield.map(x => x.manaCost.simplified[color]).reduce((a, b) => a + b, 0)).reduce((a, b) => a + b, 0);
   }
   gainLife(source: Card | Permanent, amount: number | (() => number)) {
-    let a = typeof amount == 'number' ? amount : amount();
+    let a = typeof amount == "number" ? amount : amount();;
     this.lifeTotal += a;
   }
 }

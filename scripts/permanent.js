@@ -122,18 +122,18 @@ export class Creature extends Permanent {
         this.staticToughness = card.toughness;
     }
     get basePower() {
-        return typeof this.staticPower == 'number'
+        return typeof this.staticPower == "number"
             ? this.staticPower
             : this.staticPower(this);
     }
     get baseToughness() {
-        return typeof this.staticToughness == 'number'
+        return typeof this.staticToughness == "number"
             ? this.staticToughness
             : this.staticToughness(this);
     }
     getStat(stat) {
         return ApplyHooks(StatsHook, (that, stat) => {
-            return (stat == "power" ? that.basePower : that.baseToughness) + (this.counters['+1/+1'] || 0);
+            return (stat == "power" ? that.basePower : that.baseToughness) + (this.counters["+1/+1"] || 0);
         }, this, stat);
     }
     set types(t) {
@@ -188,7 +188,8 @@ export class Creature extends Permanent {
                 return;
             if (!destroy)
                 destroy = !combat;
-            let a = typeof amount == 'number' ? amount : amount();
+            let a = typeof amount == "number" ? amount : amount();
+            ;
             that.damage += a;
             if (destroy && that.damage >= that.toughness)
                 that.destroy();
@@ -200,6 +201,6 @@ export class Creature extends Permanent {
 }
 export class Emblem extends Permanent {
     constructor(name, text, abilities) {
-        super(new PermanentCard(name, ['Emblem'], text, undefined, abilities));
+        super(new PermanentCard(name, ["Emblem"], text, undefined, abilities));
     }
 }

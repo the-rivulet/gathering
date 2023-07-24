@@ -12,9 +12,9 @@ import { Zone } from "./zone.js";
 class TreasureTokenCard extends PermanentCard {
   constructor() {
     super(
-      'Treasure Token',
-      ['Artifact', 'Token', 'Treasure'],
-      'Sacrifice {CARDNAME}: Add one mana of any color to your mana pool.',
+      "Treasure Token",
+      ["Artifact", "Token", "Treasure"],
+      "Sacrifice {CARDNAME}: Add one mana of any color to your mana pool.",
       undefined,
       new SimpleActivatedAbility(
         new SacrificeSelfCost(),
@@ -29,8 +29,8 @@ export class BasicLandCard extends PermanentCard {
   constructor(name: string, color: Color) {
     super(
       name,
-      ['Basic', 'Land', name],
-      '{A1}{T}{EC1}Add {' + Color[color] + '}.{EA1}',
+      ["Basic", "Land", name],
+      "{A1}{T}{EC1}Add {" + Color[color] + "}.{EA1}",
       undefined,
       new SimpleActivatedAbility(new TapCost(), card => new AddManaEffect({ [color]: 1 }).resolve(card))
     );
@@ -40,9 +40,9 @@ export class BasicLandCard extends PermanentCard {
 export class LlanowarElvesCard extends CreatureCard {
   constructor() {
     super(
-      'Llanowar Elves',
-      ['Creature', 'Elf', 'Druid'],
-      '{A1}{T}{EC1}Add {G}.{EA1}',
+      "Llanowar Elves",
+      ["Creature", "Elf", "Druid"],
+      "{A1}{T}{EC1}Add {G}.{EA1}",
       1, 1,
       //new ManaCost({ green: 1 }),
       new ManaCost({ green: 1 }),
@@ -55,9 +55,9 @@ export class LlanowarElvesCard extends CreatureCard {
 export class GiantGrowthCard extends SpellCard {
   constructor() {
     super(
-      'Giant Growth',
-      ['Instant'],
-      'Target creature gets +3/+3 until end of turn.',
+      "Giant Growth",
+      ["Instant"],
+      "Target creature gets +3/+3 until end of turn.",
       target => target.length == 1 && target[0] instanceof Creature,
       (p, s) => Battlefield.filter(x => x instanceof Creature).length > 0,
       (self, targets) => {
@@ -75,14 +75,14 @@ export class GiantGrowthCard extends SpellCard {
 export class ForcedAdaptationCard extends AuraCard {
   constructor() {
     super(
-      'Forced Adaptation',
-      'At the beginning of your upkeep, put a +1/+1 counter on enchanted creature.',
+      "Forced Adaptation",
+      "At the beginning of your upkeep, put a +1/+1 counter on enchanted creature.",
       x => x instanceof Creature,
       new ManaCost({ green: 1 }),
       new BeginStepHook((me, orig, that) => {
         orig(that);
         if (that.step == Step.upkeep && that.currentPlayer.is(me.controller)) {
-          new AddCounterEffect('+1/+1').resolve(this.attached as Creature);
+          new AddCounterEffect("+1/+1").resolve(this.attached as Creature);
         }
       })
     );
@@ -94,9 +94,9 @@ export class ForcedAdaptationCard extends AuraCard {
 class KarnLegacyReforgedCard extends CreatureCard {
   constructor() {
     super(
-      'Karn, Legacy Reforged',
-      ['Creature', 'Artifact', 'Legendary', 'Golem'],
-      `{CARDNAME}'s power and toughness are each equal to the greatest mana value among artifacts you control.
+      "Karn, Legacy Reforged",
+      ["Creature", "Artifact", "Legendary", "Golem"],
+      `{CARDNAME}"s power and toughness are each equal to the greatest mana value among artifacts you control.
         At the beginning of your upkeep, add {C} for each artifact you control.
         This mana can't be spent to cast nonartifact spells.
         Until end of turn, you don't lose this mana as steps and phases end.`,
@@ -117,7 +117,9 @@ class KarnLegacyReforgedCard extends CreatureCard {
         orig(that);
         if (that.step == Step.upkeep && this.representedPermanent) {
           new AddManaEffect(
-            new ManaPool({ colorless: 1, canPayFor: payFor => payFor.hasType('Artifact'), keep: true })
+            new ManaPool({
+              colorless: 1, canPayFor: payFor => payFor.hasType("Artifact"), keep: true
+            })
           ).resolve(this.representedPermanent);
         }
       })
@@ -130,8 +132,8 @@ class KarnLegacyReforgedCard extends CreatureCard {
 class FigureOfDestinyCard extends CreatureCard {
   constructor() {
     super(
-      'Figure of Destiny',
-      ['Creature', 'Kithkin'],
+      "Figure of Destiny",
+      ["Creature", "Kithkin"],
       `{R/W}: {CARDNAME} becomes a 2/2 Kithkin Spirit.
         3 x {R/W} If {CARDNAME} is a Spirit, it becomes a 4/4 Kithkin Spirit Warrior.
         6 x {R/W}: If {CARDNAME} is a Warrior, it becomes a 8/8 Kithkin Spirit Warrior Avatar with flying and first strike.`,
@@ -169,9 +171,9 @@ class FigureOfDestinyCard extends CreatureCard {
 class GeneralFerrousRokiricCard extends CreatureCard {
   constructor() {
     super(
-      'General Ferrous Rokiric',
-      ['Creature', 'Legendary', 'Human', 'Soldier'],
-      'Protection from monocolored. Whenever you cast a multicolored spell, create a 4/4 red and white Golem token.',
+      "General Ferrous Rokiric",
+      ["Creature", "Legendary", "Human", "Soldier"],
+      "Protection from monocolored. Whenever you cast a multicolored spell, create a 4/4 red and white Golem token.",
       3, 1,
       new ManaCost({ red: 1, white: 1, colorless: 1 }),
       [
@@ -191,9 +193,9 @@ class GeneralFerrousRokiricCard extends CreatureCard {
 class AnaxAndCymedeCard extends CreatureCard {
   constructor() {
     super(
-      'Anax and Cymede',
-      ['Creature', 'Legendary', 'Human', 'Soldier'],
-      'First strike, vigilance. Heroic ~ Creatures you control get +1/+1 and gain trample until end of turn.',
+      "Anax and Cymede",
+      ["Creature", "Legendary", "Human", "Soldier"],
+      "First strike, vigilance. Heroic ~ Creatures you control get +1/+1 and gain trample until end of turn.",
       3, 2,
       new ManaCost({ red: 1, white: 1, colorless: 1 }),
       [
@@ -220,8 +222,8 @@ class AnaxAndCymedeCard extends CreatureCard {
 class FeatherTheRedeemedCard extends CreatureCard {
   constructor() {
     super(
-      'Feather, the Redeemed',
-      ['Creature', 'Legendary', 'Angel'],
+      "Feather, the Redeemed",
+      ["Creature", "Legendary", "Angel"],
       `Flying.
       Whenever you cast a spell that targets a creature you control,
       exile that card instead of putting it into your graveyard as it resolves.
@@ -242,8 +244,8 @@ class FeatherTheRedeemedCard extends CreatureCard {
 class IroasGodOfVictoryCard extends CreatureCard {
   constructor() {
     super(
-      'Iroas, God of Victory',
-      ['Creature', 'Enchantment', 'Legendary', 'God'],
+      "Iroas, God of Victory",
+      ["Creature", "Enchantment", "Legendary", "God"],
       `Indestructible. As long as your devotion to red and white is less than seven, Iroas isn't a creature.
       Creatures you control have menace.
       Prevent all damage that would be dealt to attacking creatures you control.`,
@@ -253,7 +255,7 @@ class IroasGodOfVictoryCard extends CreatureCard {
         new IndestructibleAbility(),
         new TypesHook((me, orig, that) => {
           if (!me.is(that) || that.controller.devotionTo(Color.red, Color.white) >= 7) return orig(that);
-          return new TypeList(orig(that).list.filter(x => x != 'Creature'));
+          return new TypeList(orig(that).list.filter(x => x != "Creature"));
         }),
         new AbilitiesHook((me, orig, that) => {
           if (!that.controller.is(me.controller)) return orig(that);
@@ -270,8 +272,8 @@ class IroasGodOfVictoryCard extends CreatureCard {
 class RadiantScrollwielderCard extends CreatureCard {
   constructor() {
     super(
-      'Radiant Scrollwielder',
-      ['Creature', 'Dwarf', 'Cleric'],
+      "Radiant Scrollwielder",
+      ["Creature", "Dwarf", "Cleric"],
       `Instant and sorcery spells you control have lifelink.
       At the beginning of your upkeep, exile a random instant or sorcery card from your graveyard.
       You may cast it this turn.

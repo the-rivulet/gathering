@@ -108,7 +108,7 @@ export class TurnManagerClass {
                     t.length == 1 &&
                     bs.includes(i),
                   () => true, // Should always be blockers
-                  'Select an order for the blockers',
+                  "Select an order for the blockers",
                   result => {
                     chosen = result[0] as Creature;
                   }

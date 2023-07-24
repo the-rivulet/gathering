@@ -24,13 +24,13 @@ export abstract class Card {
   uuid = Math.random();
   name: string;
   types: TypeList;
-  text = '';
+  text = "";
   manaCost?: ManaCost;
   zone?: Zone;
   owner?: Player;
   uiElement?: HTMLSpanElement;
   click?: () => void;
-  constructor(name: string, types: string[], text = '', mana?: ManaCost) {
+  constructor(name: string, types: string[], text = "", mana?: ManaCost) {
     this.name = name;
     this.types = new TypeList(types);
     if (!this.types.main.length) throw new Error("Created card with no major types!");
@@ -101,13 +101,13 @@ export abstract class Card {
 export class PermanentCard extends Card {
   abilities: Ability[] = [];
   representedPermanent?: Permanent;
-  constructor(name: string, types: string[], text = '', mana?: ManaCost, abilities?: Ability[] | Ability) {
+  constructor(name: string, types: string[], text = "", mana?: ManaCost, abilities?: Ability[] | Ability) {
     if (!types.includes("Creature") &&
       !types.includes("Enchantment") &&
       !types.includes("Artifact") &&
       !types.includes("Land") &&
       !types.includes("Planeswalker")) {
-      throw new Error("Permanent card '" + name + "' has no permanent types! types=" + types);
+      throw new Error("Permanent card " + name + " has no permanent types! types=" + types);
     }
     super(name, types, text, mana);
     if (abilities)
@@ -124,7 +124,7 @@ export class SpellCard extends Card {
   constructor(
     name: string,
     types: string[],
-    text = '',
+    text = "",
     validate: (targets: any[]) => boolean,
     possible: (self: SpellCard, field: Permanent[]) => boolean,
     func: (self: SpellCard, targets: any[]) => void,
@@ -155,7 +155,7 @@ export class CreatureCard extends PermanentCard {
   constructor(
     name: string,
     types: string[],
-    text = '',
+    text = "",
     power: number | ((x: Creature) => number),
     toughness: number | ((x: Creature) => number),
     mana?: ManaCost,
@@ -185,12 +185,12 @@ export class AuraCard extends PermanentCard {
   attached: Permanent | Player;
   constructor(
     name: string,
-    text = '',
+    text = "",
     validate: (attached: Permanent | Player) => boolean,
     mana?: ManaCost,
     abilities?: Ability[] | Ability
   ) {
-    super(name, ['Enchantment', 'Aura'], text, mana, abilities);
+    super(name, ["Enchantment", "Aura"], text, mana, abilities);
     this.baseValidate = validate;
   }
   basePossible(field: Permanent[]) {

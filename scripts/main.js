@@ -6,7 +6,7 @@ import { BasicLandCard, LlanowarElvesCard, ForcedAdaptationCard, GiantGrowthCard
 import { UI } from "./ui.js";
 import { Color } from "./mana.js";
 let getPlayer = () => {
-    let p = new Player("", [new BasicLandCard('Forest', Color.green), new LlanowarElvesCard(), new ForcedAdaptationCard(), new GiantGrowthCard()]);
+    let p = new Player("", [new BasicLandCard("Forest", Color.green), new LlanowarElvesCard(), new ForcedAdaptationCard(), new GiantGrowthCard()]);
     p.name = "Player" + p.uuid.toString().slice(2, 5);
     return p;
 };

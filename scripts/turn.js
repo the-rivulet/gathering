@@ -92,7 +92,7 @@ export class TurnManagerClass {
                                 let chosen;
                                 that.defendingPlayer.selectTargets(undefined, t => t.length == 1 &&
                                     bs.includes(i), () => true, // Should always be blockers
-                                'Select an order for the blockers', result => {
+                                "Select an order for the blockers", result => {
                                     chosen = result[0];
                                 });
                                 bs2.push(chosen);

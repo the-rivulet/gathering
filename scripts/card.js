@@ -18,13 +18,13 @@ export class Card {
     uuid = Math.random();
     name;
     types;
-    text = '';
+    text = "";
     manaCost;
     zone;
     owner;
     uiElement;
     click;
-    constructor(name, types, text = '', mana) {
+    constructor(name, types, text = "", mana) {
         this.name = name;
         this.types = new TypeList(types);
         if (!this.types.main.length)
@@ -93,13 +93,13 @@ export class Card {
 export class PermanentCard extends Card {
     abilities = [];
     representedPermanent;
-    constructor(name, types, text = '', mana, abilities) {
+    constructor(name, types, text = "", mana, abilities) {
         if (!types.includes("Creature") &&
             !types.includes("Enchantment") &&
             !types.includes("Artifact") &&
             !types.includes("Land") &&
             !types.includes("Planeswalker")) {
-            throw new Error("Permanent card '" + name + "' has no permanent types! types=" + types);
+            throw new Error("Permanent card " + name + " has no permanent types! types=" + types);
         }
         super(name, types, text, mana);
         if (abilities)
@@ -112,7 +112,7 @@ export class SpellCard extends Card {
     baseValidate;
     basePossible;
     controller;
-    constructor(name, types, text = '', validate, possible, func, mana) {
+    constructor(name, types, text = "", validate, possible, func, mana) {
         super(name, (types.includes("Instant") || types.includes("Sorcery")) ? types : ["Instant", ...types], text, mana);
         this.resolve = func;
         this.baseValidate = validate;
@@ -133,7 +133,7 @@ export class SpellCard extends Card {
 export class CreatureCard extends PermanentCard {
     power = 1;
     toughness = 1;
-    constructor(name, types, text = '', power, toughness, mana, abilities) {
+    constructor(name, types, text = "", power, toughness, mana, abilities) {
         super(name, types.includes("Creature") ? types : ["Creature", ...types], text, mana, abilities);
         this.power = power;
         this.toughness = toughness;
@@ -154,8 +154,8 @@ export class CreatureCard extends PermanentCard {
 export class AuraCard extends PermanentCard {
     baseValidate;
     attached;
-    constructor(name, text = '', validate, mana, abilities) {
-        super(name, ['Enchantment', 'Aura'], text, mana, abilities);
+    constructor(name, text = "", validate, mana, abilities) {
+        super(name, ["Enchantment", "Aura"], text, mana, abilities);
         this.baseValidate = validate;
     }
     basePossible(field) {

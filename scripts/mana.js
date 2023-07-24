@@ -169,7 +169,7 @@ export class ManaPool {
     }
 }
 function isSimple(mana) {
-    return !('required' in mana || 'choices' in mana);
+    return !("required" in mana || "choices" in mana);
 }
 function manaValueOf(mana) {
     return Object.values(mana).reduce((a, b) => a + b, 0);
@@ -177,7 +177,7 @@ function manaValueOf(mana) {
 function asString(mana, withBraces = false) {
     let order = Object.keys(Color);
     let s = mana.generic ? mana.generic.toString() : "";
-    let keys = Object.keys(mana).filter(x => x != 'generic');
+    let keys = Object.keys(mana).filter(x => x != "generic");
     keys.sort((a, b) => order.includes(a) ? (order.includes(b) ? (order.indexOf(a) > order.indexOf(b) ? 1 : -1) : 1) : order.includes(b) ? -1 : 0);
     for (let i of keys)
         s += (i == "blue" ? "U" : i[0].toUpperCase()).repeat(mana[i]);
@@ -192,7 +192,7 @@ function simplePay(mana, cost, tryPayingGeneric = false) {
     let pool = new ManaPool(mana.mana);
     let keys = Object.keys(cost);
     if (!tryPayingGeneric)
-        keys = keys.filter(x => x != 'generic');
+        keys = keys.filter(x => x != "generic");
     for (let col of keys) {
         let payables = pool.mana.filter(x => x[col] && x[col] > 0);
         let toPay = cost[col];

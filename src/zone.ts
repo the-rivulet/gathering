@@ -1,13 +1,13 @@
 import type { Card } from "./card.js";
 
 export enum Zone {
-  library = 'library',
-  hand = 'hand',
-  graveyard = 'graveyard',
-  exile = 'exile',
-  battlefield = 'battlefield',
-  limbo = 'limbo',
-  stack = 'stack'
+  library = "library",
+  hand = "hand",
+  graveyard = "graveyard",
+  exile = "exile",
+  battlefield = "battlefield",
+  limbo = "limbo",
+  stack = "stack"
 }
 
 export class ZoneManager {
