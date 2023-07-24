@@ -124,7 +124,7 @@ export class SpellCard extends Card {
     }
     validate(self, targets) {
         return ApplyHooks(CheckTargetsHook, function (that, targets) {
-            return that.baseValidate(targets);
+            return that.baseValidate(self, targets);
         }, self, targets);
     }
     makeEquivalentCopy;
@@ -133,7 +133,7 @@ export class SimpleSpellCard extends SpellCard {
     constructor(name, types, text, func, mana) {
         let targetType;
         let possible = (self, field) => field.filter(x => x instanceof targetType).length > 0;
-        let validate = (target) => target.length == 1 && target[0] instanceof targetType;
+        let validate = (self, target) => target.length == 1 && target[0] instanceof targetType;
         let func2 = (self, targets) => func(self, targets[0]);
         super(name, types, text, validate, possible, func2, mana);
     }

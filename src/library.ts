@@ -363,4 +363,20 @@ export class LightningBoltCard extends SimpleSpellCard<Creature | Player | Plane
   }
 }
 
+export class RecklessRageCard extends SpellCard {
+  constructor() {
+    super(
+      "Reckless Rage",
+      ["Instant"],
+      "Reckless Rage deals 4 damage to target creature you don't control and 2 damage to target creature you control.",
+      (self, targets) => targets.length == 2 && targets[0] instanceof Creature && !targets[0].controller.is(self.controller) && targets[1] instanceof Creature && targets[1].controller.is(self.controller),
+      (self, field) => field.filter(x => x instanceof Creature && !x.controller.is(self.controller)).length > 0 && field.filter(x => x instanceof Creature && x.controller.is(self.controller)).length > 0,
+      (self, targets) => {
+        targets[0].takeDamage(self, 4);
+        targets[1].takeDamage(self, 2);
+      }
+    );
+  }
+}
+
 // TODO: rest of deck

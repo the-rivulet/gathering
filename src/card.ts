@@ -117,10 +117,10 @@ export class PermanentCard extends Card {
 
 export class SpellCard extends Card {
   resolve: (card: SpellCard, target: any[]) => void;
-  baseValidate: (targets: any[]) => boolean;
+  baseValidate: (self: SpellCard, targets: any[]) => boolean;
   basePossible: (self: SpellCard, field: Permanent[]) => boolean;
   controller?: Player;
-  constructor(name: string, types: string[], text: string, validate: (targets: any[]) => boolean, possible: (self: SpellCard, field: Permanent[]) => boolean, func: (self: SpellCard, targets: any[]) => void, mana?: ManaCost) {
+  constructor(name: string, types: string[], text: string, validate: (self: SpellCard, targets: any[]) => boolean, possible: (self: SpellCard, field: Permanent[]) => boolean, func: (self: SpellCard, targets: any[]) => void, mana?: ManaCost) {
     super(name, (types.includes("Instant") || types.includes("Sorcery")) ? types : ["Instant", ...types], text, mana);
     this.resolve = func;
     this.baseValidate = validate;
@@ -133,7 +133,7 @@ export class SpellCard extends Card {
   }
   validate(self: SpellCard, targets: any[]): boolean {
     return ApplyHooks(CheckTargetsHook, function (that: SpellCard, targets: any[]) {
-      return that.baseValidate(targets);
+      return that.baseValidate(self, targets);
     }, self, targets);
   }
   makeEquivalentCopy: () => SpellCard;
@@ -143,7 +143,7 @@ export class SimpleSpellCard<T> extends SpellCard {
   constructor(name: string, types: string[], text: string, func: (self: SpellCard, target: T) => void, mana?: ManaCost) {
     let targetType: new (...args: any) => T;
     let possible = (self: SimpleSpellCard<T>, field: Permanent[]) => field.filter(x => x instanceof targetType).length > 0;
-    let validate = (target: any[]) => target.length == 1 && target[0] instanceof targetType;
+    let validate = (self: SimpleSpellCard<T>, target: any[]) => target.length == 1 && target[0] instanceof targetType;
     let func2 = (self: SpellCard, targets: any[]) => func(self, targets[0]);
     super(name, types, text, validate, possible, func2, mana);
   }
