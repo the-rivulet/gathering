@@ -1,11 +1,11 @@
-import type { Player } from "./player.js";
 import { PermanentCard, CreatureCard, AuraCard, SpellCard, SimpleSpellCard, TypeList } from "./card.js";
-import { SimpleActivatedAbility, TargetedActivatedAbility, FirstStrikeAbility, VigilanceAbility, TrampleAbility } from "./ability.js";
+import { SimpleActivatedAbility, TargetedActivatedAbility, FirstStrikeAbility, VigilanceAbility, TrampleAbility, DoubleStrikeAbility } from "./ability.js";
 import { MultipleEffect, AddManaEffect, CreateTokenEffect, AddCounterEffect, ApplyAbilityEffect, SetStatsEffect, SetTypesEffect, DelayedEffect, MoveCardsEffect, QueueCardsEffect } from "./effect.js";
 import { SacrificeSelfCost, TapCost } from "./cost.js";
 import { ManaCost, ManaPool, Color } from "./mana.js";
 import { PlayCardHook, BeginStepHook, StatsHook, ProtectionAbility, FlyingAbility, HeroicAbility, ResolveCardHook, IndestructibleAbility, TypesHook, AbilitiesHook, MenaceAbility, TakeDamageHook, CardClickHook, SelectTargetsHook, WardAbility } from "./hook.js";
 import { Creature, Planeswalker } from "./permanent.js";
+import { Player } from "./player.js";
 import { Battlefield, TurnManager } from "./globals.js";
 import { Step } from "./turn.js";
 import { Zone } from "./zone.js";
@@ -374,6 +374,40 @@ export class RecklessRageCard extends SpellCard {
       (self, targets) => {
         targets[0].takeDamage(self, 4);
         targets[1].takeDamage(self, 2);
+      }
+    );
+  }
+}
+
+export class BorosCharmCard extends SpellCard {
+  constructor() {
+    super(
+      "Boros Charm",
+      ["Instant"],
+      `Choose one:
+      * 4 damage to target player or planeswalker.
+      * Permanents you control gain indestructible until end of turn.
+      * Target creature gains double strike until end of turn.`,
+      (self, targets) => targets.length == 0,
+      (self, field) => true,
+      (self, targets) => {
+        let hasCreature = self.controller.zones.battlefield.filter(x => x instanceof CreatureCard).length > 0;
+        self.controller.chooseOptions(["4 damage to target player or planeswalker", "Permanents you control gain insdestructible until end of turn", ...(hasCreature ? ["Target creature gains double strike until end of turn"] : [])], 1, "Choose an option.", choices => {
+          let c = choices[0];
+          if (c == 0) {
+            self.controller.selectSingleTarget<Player | Planeswalker>(undefined, t => true, () => true, "Choose something to deal 4 damage to", result => {
+              result.takeDamage(self, 4);
+            });
+          } else if (c == 1) {
+            for (let i of Battlefield.filter(x => x.controller.is(self.controller))) {
+              new ApplyAbilityEffect(new IndestructibleAbility()).resolve(i);
+            }
+          } else {
+            self.controller.selectSingleTarget<Creature>(undefined, t => true, () => true, "Choose something to give double strike", result => {
+              new ApplyAbilityEffect(new DoubleStrikeAbility()).resolve(result);
+            });
+          }
+        });
       }
     );
   }

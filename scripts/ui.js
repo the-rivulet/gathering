@@ -186,9 +186,7 @@ function renderRow(cards, offset, valids = []) {
                             creature.unmarkAsAttacker();
                         }
                         else if (canBlock) {
-                            creature.controller.selectTargets(undefined, t => t.length == 1 && creature.markAsBlocker(t[0], false), () => Battlefield.filter(x => x.representedCard instanceof CreatureCard && creature.markAsBlocker(x, false)).length > 0, "Select something to block", result => {
-                                creature.markAsBlocker(result);
-                            }, true);
+                            creature.controller.selectSingleTarget(undefined, t => creature.markAsBlocker(t[0], false), () => Battlefield.filter(x => x.representedCard instanceof CreatureCard && creature.markAsBlocker(x, false)).length > 0, "Select something to block", result => creature.markAsBlocker(result));
                         }
                         else if (blocking.length) {
                             for (let attacker of blocking) {

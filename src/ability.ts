@@ -38,20 +38,33 @@ export class SimpleActivatedAbility<T extends Permanent> extends ActivatedAbilit
   }
 }
 
-export class TargetedActivatedAbility<T extends Permanent> extends ActivatedAbility {
-  validate: (card: T) => (targets: any[]) => boolean;
+export class SingleTargetActivatedAbility<T extends Permanent, U> extends ActivatedAbility {
+  validate: (card: T) => (target: U) => boolean;
   possible: (card: T) => () => boolean;
-  effect: (card: Permanent, targets: any[]) => void;
-  limitOne: boolean;
-  constructor(validate: (card: T) => (targets: any[]) => boolean, possible: (card: T) => () => boolean, effect: (card: Permanent, targets: any[]) => void, limitOne = false) {
+  effect: (card: Permanent, target: U) => void;
+  constructor(validate: (card: T) => (target: U) => boolean, possible: (card: T) => () => boolean, effect: (card: Permanent, target: U) => void) {
     super();
     this.validate = validate;
     this.possible = possible;
     this.effect = effect;
-    this.limitOne = limitOne;
   };
   activate(card: T) {
-    return card.controller.selectTargets(undefined, this.validate(card), this.possible(card), "Select some targets", result => this.effect(card, result), this.limitOne);
+    return card.controller.selectSingleTarget(undefined, this.validate(card), this.possible(card), "Select some targets", result => this.effect(card, result));
+  }
+}
+
+export class TargetedActivatedAbility<T extends Permanent> extends ActivatedAbility {
+  validate: (card: T) => (targets: any[]) => boolean;
+  possible: (card: T) => () => boolean;
+  effect: (card: Permanent, targets: any[]) => void;
+  constructor(validate: (card: T) => (targets: any[]) => boolean, possible: (card: T) => () => boolean, effect: (card: Permanent, targets: any[]) => void) {
+    super();
+    this.validate = validate;
+    this.possible = possible;
+    this.effect = effect;
+  };
+  activate(card: T) {
+    return card.controller.selectTargets(undefined, this.validate(card), this.possible(card), "Select some targets", result => this.effect(card, result));
   }
 }
 

@@ -27,21 +27,34 @@ export class SimpleActivatedAbility extends ActivatedAbility {
         return true;
     }
 }
-export class TargetedActivatedAbility extends ActivatedAbility {
+export class SingleTargetActivatedAbility extends ActivatedAbility {
     validate;
     possible;
     effect;
-    limitOne;
-    constructor(validate, possible, effect, limitOne = false) {
+    constructor(validate, possible, effect) {
         super();
         this.validate = validate;
         this.possible = possible;
         this.effect = effect;
-        this.limitOne = limitOne;
     }
     ;
     activate(card) {
-        return card.controller.selectTargets(undefined, this.validate(card), this.possible(card), "Select some targets", result => this.effect(card, result), this.limitOne);
+        return card.controller.selectSingleTarget(undefined, this.validate(card), this.possible(card), "Select some targets", result => this.effect(card, result));
+    }
+}
+export class TargetedActivatedAbility extends ActivatedAbility {
+    validate;
+    possible;
+    effect;
+    constructor(validate, possible, effect) {
+        super();
+        this.validate = validate;
+        this.possible = possible;
+        this.effect = effect;
+    }
+    ;
+    activate(card) {
+        return card.controller.selectTargets(undefined, this.validate(card), this.possible(card), "Select some targets", result => this.effect(card, result));
     }
 }
 export class EmptyAbility extends Ability {

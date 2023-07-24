@@ -95,14 +95,26 @@ export class Player {
     /**
      * feel free to pass `undefined` to `casting` if you aren't casting a card, idk why I put it as the first argument lol
      */
-    selectTargets(casting, validate, possible, message, continuation, limitOne = false) {
+    selectTargets(casting, validate, possible, message, continuation) {
         return ApplyHooks(SelectTargetsHook, (that, casting, validate, possible, message, continuation, limitOne) => {
             if (!possible())
                 return false;
             that.selectionData = new SelectionData(casting, validate, possible, message, continuation, limitOne);
             UI.selectTargets(that);
             return true;
-        }, this, casting, validate, possible, message, continuation, limitOne);
+        }, this, casting, validate, possible, message, continuation, false);
+    }
+    selectSingleTarget(casting, validate, possible, message, continuation) {
+        let targetType;
+        let v = targets => targets.length == 1 && targets[0] instanceof targetType && validate(targets[0]);
+        let c = result => continuation(result[0]);
+        return ApplyHooks(SelectTargetsHook, (that, casting, validate, possible, message, continuation, limitOne) => {
+            if (!possible())
+                return false;
+            that.selectionData = new SelectionData(casting, validate, possible, message, continuation, limitOne);
+            UI.selectTargets(that);
+            return true;
+        }, this, casting, v, possible, message, c, true);
     }
     playLand(card, free = false, auto = false) {
         if (!card.landPlayable(this, auto, free))
@@ -117,7 +129,6 @@ export class Player {
             return false;
         if (!free)
             this.manaPool.pay(card, this);
-        //TriggerEffects(Events.onCardCast, { player: this, card: card });
         StackManager.add({ card: card });
         this.moveCardTo(card, Zone.stack);
         UI.renderStack();
@@ -151,12 +162,12 @@ export class Player {
     async castAura(card, forceTarget, free = false, auto = false) {
         if (!card.castable(this, auto, free) || !card.possible(card, Battlefield))
             return false;
-        let doIt = (targets) => {
-            if (!card.validate(card, targets[0])) {
+        let doIt = (target) => {
+            if (!card.validate(card, target)) {
                 this.moveCardTo(card, Zone.graveyard);
                 return false;
             }
-            StackManager.add({ card: card, targets: targets });
+            StackManager.add({ card: card, targets: [target] });
             UI.renderStack();
             return true;
         };
@@ -164,9 +175,9 @@ export class Player {
             this.manaPool.pay(card, this);
         this.moveCardTo(card, Zone.stack);
         if (forceTarget)
-            return doIt([forceTarget]);
+            return doIt(forceTarget);
         else {
-            this.selectTargets(card, t => t.length == 1 && card.validate(card, t[0]), () => card.possible(card, Battlefield), "Select the aura's targets", doIt, true);
+            this.selectSingleTarget(card, t => card.validate(card, t), () => card.possible(card, Battlefield), "Select the aura's targets", doIt);
             return true;
         }
     }
