@@ -2,10 +2,10 @@ import { PermanentCard, CreatureCard, AuraCard, SpellCard, TypeList } from "./ca
 import { SimpleActivatedAbility, TargetedActivatedAbility, FirstStrikeAbility, VigilanceAbility, TrampleAbility } from "./ability.js";
 import { MultipleEffect, AddManaEffect, CreateTokenEffect, AddCounterEffect, ApplyAbilityEffect, SetStatsEffect, SetTypesEffect, DelayedEffect, MoveCardsEffect } from "./effect.js";
 import { SacrificeSelfCost, TapCost } from "./cost.js";
-import { ManaCost, ManaPool } from "./mana.js";
-import { PlayCardHook, BeginStepHook, StatsHook, ProtectionAbility, FlyingAbility, HeroicAbility, ResolveCardHook, IndestructibleAbility, TypesHook, AbilitiesHook, MenaceAbility, TakeDamageHook } from "./hook.js";
+import { ManaCost, ManaPool, Color } from "./mana.js";
+import { PlayCardHook, BeginStepHook, StatsHook, ProtectionAbility, FlyingAbility, HeroicAbility, ResolveCardHook, IndestructibleAbility, TypesHook, AbilitiesHook, MenaceAbility, TakeDamageHook, CardClickHook } from "./hook.js";
 import { Creature } from "./permanent.js";
-import { Battlefield } from "./globals.js";
+import { Battlefield, TurnManager } from "./globals.js";
 import { Step } from "./turn.js";
 import { Zone } from "./zone.js";
 
@@ -25,17 +25,16 @@ class TreasureTokenCard extends PermanentCard {
   makeEquivalentCopy = () => new TreasureTokenCard();
 }
 
-export class ForestCard extends PermanentCard {
-  constructor() {
+export class BasicLandCard extends PermanentCard {
+  constructor(name: string, color: Color) {
     super(
-      'Forest',
-      ['Land', 'Basic', 'Forest'],
-      '{A1}{T}{EC1}Add {G}.{EA1}',
+      name,
+      ['Basic', 'Land', name],
+      '{A1}{T}{EC1}Add {' + Color[color] + '}.{EA1}',
       undefined,
-      new SimpleActivatedAbility(new TapCost(), card => new AddManaEffect({ green: 1 }).resolve(card))
+      new SimpleActivatedAbility(new TapCost(), card => new AddManaEffect({ [color]: 1 }).resolve(card))
     );
   }
-  makeEquivalentCopy = () => new ForestCard();
 }
 
 export class LlanowarElvesCard extends CreatureCard {
@@ -82,7 +81,7 @@ export class ForcedAdaptationCard extends AuraCard {
       new ManaCost({ green: 1 }),
       new BeginStepHook((me, orig, that) => {
         orig(that);
-        if (that.step == Step.upkeep && that.currentPlayer.is((this.attached as Creature).controller)) {
+        if (that.step == Step.upkeep && that.currentPlayer.is(me.controller)) {
           new AddCounterEffect('+1/+1').resolve(this.attached as Creature);
         }
       })
@@ -253,7 +252,7 @@ class IroasGodOfVictoryCard extends CreatureCard {
       [
         new IndestructibleAbility(),
         new TypesHook((me, orig, that) => {
-          if (!me.is(that) || that.controller.devotionTo("red", "white") >= 7) return orig(that);
+          if (!me.is(that) || that.controller.devotionTo(Color.red, Color.white) >= 7) return orig(that);
           return new TypeList(orig(that).list.filter(x => x != 'Creature'));
         }),
         new AbilitiesHook((me, orig, that) => {
@@ -261,8 +260,46 @@ class IroasGodOfVictoryCard extends CreatureCard {
           return [...orig(that), new MenaceAbility()];
         }),
         new TakeDamageHook((me, orig, that, source, amount, combat, destroy) => {
-          if (!that.controller.is(me.controller) || !that.attacking) return orig(that, source, amount, combat, destroy);
-          // Otherwise, do nothing.
+          if (!(that instanceof Creature) || !that.controller.is(me.controller) || !that.attacking) return orig(that, source, amount, combat, destroy);
+        })
+      ]
+    );
+  }
+}
+
+class RadiantScrollwielderCard extends CreatureCard {
+  constructor() {
+    super(
+      'Radiant Scrollwielder',
+      ['Creature', 'Dwarf', 'Cleric'],
+      `Instant and sorcery spells you control have lifelink.
+      At the beginning of your upkeep, exile a random instant or sorcery card from your graveyard.
+      You may cast it this turn.
+      If a spell cast this way would be put into your graveyard, exile it instead.`,
+      2, 4,
+      new ManaCost({ red: 1, white: 1, generic: 2 }),
+      [
+        new TakeDamageHook((me, orig, that, source, amount, combat, destroy) => {
+          orig(that, source, amount, combat, destroy);
+          if (source instanceof SpellCard && source.controller.is(me.controller)) me.controller.gainLife(source, amount);
+        }),
+        new BeginStepHook((me, orig, that) => {
+          orig(that);
+          if (that.step == Step.upkeep && that.currentPlayer.is(me.controller)) {
+            let spells = me.controller.zones.graveyard.filter(x => x.hasType("Instant") || x.hasType("Sorcery"));
+            if (!spells.length) return;
+            let spell = spells[Math.floor(Math.random() * spells.length)];
+            new ApplyAbilityEffect(new CardClickHook((me2, orig2, that2) => {
+              if (!that2.is(spell) || TurnManager.ongoingSelection) return orig2(that2);
+              new ApplyAbilityEffect(new ResolveCardHook((me3, orig3, that3, card, targets) => {
+                if (card.is(spell) && card instanceof SpellCard) {
+                  card.resolve(card, targets);
+                  that3.moveCardTo(card, Zone.exile);
+                } else orig3(that3, card, targets);
+              })).resolve(me2);
+              that2.play();
+            })).queue(me);
+          }
         })
       ]
     );

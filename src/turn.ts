@@ -33,6 +33,7 @@ export class TurnManagerClass {
   endedPhase: boolean;
   endedTurn: boolean;
   delays: StackDelay[] = [];
+  turn = 0;
   step = Step.untap;
   stepIndex = 0;
   stepList = [
@@ -164,6 +165,7 @@ export class TurnManagerClass {
         (i as Creature).removeDamage();
       }
       // Begin a new turn
+      this.turn++;
       for (let p of this.playerList) p.manaPool.mana = p.manaPool.mana.filter(x => x.keep);
       for (let i of Battlefield.filter(x => x instanceof Creature)) {
         (i as Creature).attacking = false;

@@ -150,8 +150,14 @@ export class MenaceAbility extends ValidStateHook {
   }
 }
 
-export class TakeDamageHook extends Hook<Creature, [Card | Permanent, number | (() => number), boolean, boolean], void> {
-  constructor(apply: (me: Permanent, orig: (that: Creature, source: Card | Permanent, amount: number | (() => number), combat: boolean, destroy: boolean) => void, that: Creature, source: Card | Permanent, amount: number | (() => number), combat: boolean, destroy: boolean) => void) {
+export class TakeDamageHook extends Hook<Creature | Player, [Card | Permanent, number | (() => number), boolean, boolean], void> {
+  constructor(apply: (me: Permanent, orig: (that: Creature | Player, source: Card | Permanent, amount: number | (() => number), combat: boolean, destroy: boolean) => void, that: Creature | Player, source: Card | Permanent, amount: number | (() => number), combat: boolean, destroy: boolean) => void) {
+    super(apply);
+  }
+}
+
+export class CardClickHook extends Hook<Card, [], void> {
+  constructor(apply: (me: Permanent, orig: (that: Card) => void, that: Card) => void) {
     super(apply);
   }
 }

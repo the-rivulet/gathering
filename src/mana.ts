@@ -4,6 +4,16 @@ import { Card } from "./card.js";
 import { Cost } from "./cost.js";
 import { UI } from "./ui.js";
 
+export enum Color {
+  generic = "1",
+  white = "W",
+  blue = "U",
+  black = "B",
+  red = "R",
+  green = "G",
+  colorless = "C"
+}
+
 export interface SimpleManaObject {
   generic?: number;
   white?: number;
@@ -77,7 +87,7 @@ export class ManaPool {
   get simplified(): SimpleManaObject {
     let c = {};
     for (let i of this.mana) {
-      for (let j of Object.keys(i).filter(x => ["white", "blue", "black", "red", "green", "colorless", "generic"].includes(x))) {
+      for (let j of Object.keys(i).filter(x => Object.keys(Color).includes(x))) {
         if (c[j]) c[j] += i[j];
         else c[j] = i[j];
       }
@@ -175,7 +185,7 @@ function manaValueOf(mana: SimpleManaObject): number {
 }
 
 function asString(mana: SimpleManaObject, withBraces = false) {
-  let order = ["colorless", "white", "blue", "black", "red", "green"];
+  let order = Object.keys(Color);
   let s: string = mana.generic ? mana.generic.toString() : "";
   let keys = Object.keys(mana).filter(x => x != 'generic');
   keys.sort((a, b) => order.includes(a) ? (order.includes(b) ? (order.indexOf(a) > order.indexOf(b) ? 1 : -1) : 1) : order.includes(b) ? -1 : 0);

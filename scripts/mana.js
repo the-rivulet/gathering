@@ -1,6 +1,16 @@
 import { Card } from "./card.js";
 import { Cost } from "./cost.js";
 import { UI } from "./ui.js";
+export var Color;
+(function (Color) {
+    Color["generic"] = "1";
+    Color["white"] = "W";
+    Color["blue"] = "U";
+    Color["black"] = "B";
+    Color["red"] = "R";
+    Color["green"] = "G";
+    Color["colorless"] = "C";
+})(Color || (Color = {}));
 export class ManaCost extends Cost {
     mana;
     card;
@@ -49,7 +59,7 @@ export class ManaPool {
     get simplified() {
         let c = {};
         for (let i of this.mana) {
-            for (let j of Object.keys(i).filter(x => ["white", "blue", "black", "red", "green", "colorless", "generic"].includes(x))) {
+            for (let j of Object.keys(i).filter(x => Object.keys(Color).includes(x))) {
                 if (c[j])
                     c[j] += i[j];
                 else
@@ -165,7 +175,7 @@ function manaValueOf(mana) {
     return Object.values(mana).reduce((a, b) => a + b, 0);
 }
 function asString(mana, withBraces = false) {
-    let order = ["colorless", "white", "blue", "black", "red", "green"];
+    let order = Object.keys(Color);
     let s = mana.generic ? mana.generic.toString() : "";
     let keys = Object.keys(mana).filter(x => x != 'generic');
     keys.sort((a, b) => order.includes(a) ? (order.includes(b) ? (order.indexOf(a) > order.indexOf(b) ? 1 : -1) : 1) : order.includes(b) ? -1 : 0);

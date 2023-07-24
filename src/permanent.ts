@@ -3,7 +3,7 @@ import type { Player } from "./player.js";
 import { Card, PermanentCard, CreatureCard, TypeList } from "./card.js";
 import { Ability, ComputedAbility, FirstStrikeAbility, DoubleStrikeAbility } from "./ability.js";
 import { Battlefield } from "./globals.js";
-import { ApplyHooks, DestroyPermanentHook, StatsHook, TypesHook, AbilitiesHook } from "./hook.js";
+import { ApplyHooks, DestroyPermanentHook, StatsHook, TypesHook, AbilitiesHook, TakeDamageHook } from "./hook.js";
 import { Zone } from "./zone.js";
 import { UI } from "./ui.js";
 
@@ -181,10 +181,13 @@ export class Creature extends Permanent {
     target.takeDamage(this, this.power, true, !this.hasAbility(DoubleStrikeAbility) && !target.hasAbility(FirstStrikeAbility));
   }
   takeDamage(source: Card | Permanent, amount: number | (() => number), combat = false, destroy?: boolean) {
-    if (!destroy) destroy = !combat;
-    let a = typeof amount == 'number' ? amount : amount();
-    this.damage += a;
-    if (destroy && this.damage >= this.toughness) this.destroy();
+    ApplyHooks(TakeDamageHook, (that, source, amount, combat, destroy) => {
+      if (!(that instanceof Creature)) return;
+      if (!destroy) destroy = !combat;
+      let a = typeof amount == 'number' ? amount : amount();
+      that.damage += a;
+      if (destroy && that.damage >= that.toughness) that.destroy();
+    }, this, source, amount, combat, destroy);
   }
   removeDamage(amount: number = Infinity) {
     this.damage = Math.max(0, this.damage - amount);

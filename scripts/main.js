@@ -2,10 +2,11 @@ import { Player } from "./player.js";
 import { TurnManager, UpdateGlobals, Battlefield } from "./globals.js";
 import { StackManagerClass } from "./stack.js";
 import { TurnManagerClass, Step } from "./turn.js";
-import { ForestCard, LlanowarElvesCard, ForcedAdaptationCard, GiantGrowthCard } from "./library.js";
+import { BasicLandCard, LlanowarElvesCard, ForcedAdaptationCard, GiantGrowthCard } from "./library.js";
 import { UI } from "./ui.js";
+import { Color } from "./mana.js";
 let getPlayer = () => {
-    let p = new Player("unnamed", [new ForestCard(), new LlanowarElvesCard(), new ForcedAdaptationCard(), new GiantGrowthCard()]);
+    let p = new Player("", [new BasicLandCard('Forest', Color.green), new LlanowarElvesCard(), new ForcedAdaptationCard(), new GiantGrowthCard()]);
     p.name = "Player" + p.uuid.toString().slice(2, 5);
     return p;
 };

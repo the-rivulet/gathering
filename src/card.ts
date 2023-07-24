@@ -1,7 +1,7 @@
 import type { Permanent, Creature } from "./permanent.js";
 import type { Player } from "./player.js";
-import type { ManaCost } from "./mana.js";
 import type { Ability } from "./ability.js";
+import { ManaCost, Color } from "./mana.js";
 import { Zone } from "./zone.js";
 import { TurnManager } from "./globals.js";
 import { Step } from "./turn.js";

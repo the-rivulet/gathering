@@ -136,3 +136,8 @@ export class TakeDamageHook extends Hook {
         super(apply);
     }
 }
+export class CardClickHook extends Hook {
+    constructor(apply) {
+        super(apply);
+    }
+}

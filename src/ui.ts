@@ -4,6 +4,7 @@ import { ManaPool, SimpleManaObject, ManaCost, ManaUtils } from "./mana.js";
 import { ActivatedAbility, SimpleActivatedAbility, TargetedActivatedAbility } from "./ability.js";
 import { Card, AuraCard, PermanentCard, SpellCard, CreatureCard } from "./card.js";
 import { TurnManager, Battlefield, StackManager, Settings } from "./globals.js";
+import { ApplyHooks, CardClickHook } from "./hook.js";
 import { Zone } from "./zone.js";
 import { Step } from "./turn.js";
 
@@ -141,69 +142,71 @@ function renderRow(cards: Card[], offset: number, valids: Card[] = []) {
     }
     // Click to play it or activate it
     let onclick = function () {
-      if (TurnManager.ongoingSelection) {
-        let player = TurnManager.selectingPlayer;
-        if (card instanceof PermanentCard && card.representedPermanent) {
-          if (selection.map(x => x.item).includes(card.representedPermanent)) {
-            selection.splice(selection.map(x => x.item).indexOf(card.representedPermanent), 1);
-          } else {
-            if (player.selectionData.limitOne) selection = [];
-            selection.push(new PermanentSelection(card.representedPermanent));
+      ApplyHooks(CardClickHook, card => {
+        if (TurnManager.ongoingSelection) {
+          let player = TurnManager.selectingPlayer;
+          if (card instanceof PermanentCard && card.representedPermanent) {
+            if (selection.map(x => x.item).includes(card.representedPermanent)) {
+              selection.splice(selection.map(x => x.item).indexOf(card.representedPermanent), 1);
+            } else {
+              if (player.selectionData.limitOne) selection = [];
+              selection.push(new PermanentSelection(card.representedPermanent));
+            }
           }
+          updateSelection(player);
         }
-        updateSelection(player);
-      }
-      else if (card.zone == "hand") card.play();
-      else if (card.zone == "battlefield" && card instanceof PermanentCard && card.representedPermanent) {
-        let c = card.representedPermanent;
-        let canAttack = false, canBlock = false, attacking = false, blocking: Creature[] = [];
-        if (card instanceof CreatureCard) {
-          let creature = card.representedPermanent as Creature;
-          canAttack = creature.markAsAttacker(false);
-          canBlock = creature.markAsBlocker();
-          attacking = creature.attacking;
-          blocking = creature.blocking;
-          if (canAttack) {
-            creature.markAsAttacker();
-          } else if (attacking) {
-            creature.unmarkAsAttacker();
-          } else if (canBlock) {
-            creature.controller.selectTargets(
-              undefined,
-              t => t.length == 1 && creature.markAsBlocker(t[0], false),
-              () => Battlefield.filter(x => x.representedCard instanceof CreatureCard && creature.markAsBlocker(x as Creature, false)).length > 0,
-              "Select something to block",
-              result => {
-                creature.markAsBlocker(result);
-              },
-              true);
-          } else if (blocking.length) {
-            for (let attacker of blocking) {
-              creature.controller.unmarkAsBlocker(creature, attacker);
+        else if (card.zone == "hand") card.play();
+        else if (card.zone == "battlefield" && card instanceof PermanentCard && card.representedPermanent) {
+          let c = card.representedPermanent;
+          let canAttack = false, canBlock = false, attacking = false, blocking: Creature[] = [];
+          if (card instanceof CreatureCard) {
+            let creature = card.representedPermanent as Creature;
+            canAttack = creature.markAsAttacker(false);
+            canBlock = creature.markAsBlocker();
+            attacking = creature.attacking;
+            blocking = creature.blocking;
+            if (canAttack) {
+              creature.markAsAttacker();
+            } else if (attacking) {
+              creature.unmarkAsAttacker();
+            } else if (canBlock) {
+              creature.controller.selectTargets(
+                undefined,
+                t => t.length == 1 && creature.markAsBlocker(t[0], false),
+                () => Battlefield.filter(x => x.representedCard instanceof CreatureCard && creature.markAsBlocker(x as Creature, false)).length > 0,
+                "Select something to block",
+                result => {
+                  creature.markAsBlocker(result);
+                },
+                true);
+            } else if (blocking.length) {
+              for (let attacker of blocking) {
+                creature.controller.unmarkAsBlocker(creature, attacker);
+              }
+            }
+          }
+          if (!canAttack && !canBlock && !attacking && !blocking.length && c.abilities.filter(x => x instanceof ActivatedAbility).length) {
+            let abils = c.abilities.filter(x => x instanceof ActivatedAbility) as ActivatedAbility[];
+            for (let a of abils) {
+              if (a instanceof SimpleActivatedAbility && a.cost.pay(c, false)) {
+                a.activate(c);
+                break;
+              }
+              // TODO: something for TargetedActivatedAbility 
             }
           }
         }
-        if (!canAttack && !canBlock && !attacking && !blocking.length && c.abilities.filter(x => x instanceof ActivatedAbility).length) {
-          let abils = c.abilities.filter(x => x instanceof ActivatedAbility) as ActivatedAbility[];
-          for (let a of abils) {
-            if (a instanceof SimpleActivatedAbility && a.cost.pay(c, false)) {
-              a.activate(c);
-              break;
-            }
-            // TODO: something for TargetedActivatedAbility 
-          }
-        }
-      }
-      // This will (probably) be needed, why not?
-      renderBattlefield();
-      renderStack();
+        // This will (probably) be needed, why not?
+        renderBattlefield();
+        renderStack();
+      }, card);
     };
     card.click = onclick;
     tt.onclick = onclick;
     // Append
     getId("field").appendChild(tt);
     card.uiElement = tt;
-  }
+  };
   mouse();
 }
 
@@ -371,20 +374,24 @@ function renderBattlefield() {
           tx.innerHTML = card.getTooltip(textAsHTML);
           tx.classList.add("tx");
           tt.appendChild(tx);
-          tt.onclick = function (e) {
-            if (TurnManager.ongoingSelection) {
-              let player = TurnManager.selectingPlayer;
-              if (selection.map(x => x.item).includes(card)) {
-                selection.splice(selection.map(x => x.item).indexOf(card), 1);
-              } else {
-                if (player.selectionData.limitOne) selection = [];
-                selection.push(new CardSelection(card));
+          let onclick = function () {
+            ApplyHooks(CardClickHook, card => {
+              if (TurnManager.ongoingSelection) {
+                let player = TurnManager.selectingPlayer;
+                if (selection.map(x => x.item).includes(card)) {
+                  selection.splice(selection.map(x => x.item).indexOf(card), 1);
+                } else {
+                  if (player.selectionData.limitOne) selection = [];
+                  selection.push(new CardSelection(card));
+                }
+                updateSelection(player);
               }
-              updateSelection(player);
-            }
+            }, card);
           };
           getId("pv-inner").appendChild(tt);
           card.uiElement = tt;
+          card.click = onclick;
+          tt.onclick = onclick;
         }
       }
     };

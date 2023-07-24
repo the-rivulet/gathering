@@ -1,8 +1,8 @@
 import { PermanentCard, CreatureCard, AuraCard, SpellCard } from "./card.js";
-import { ManaPool } from "./mana.js";
+import { ManaPool, Color } from "./mana.js";
 import { Creature, Permanent } from "./permanent.js";
 import { Battlefield, TurnManager, StackManager } from "./globals.js";
-import { ApplyHooks, HasValidTargetsHook, PlayCardHook, CheckTargetsHook, MarkAsBlockerHook, SelectTargetsHook, ResolveCardHook } from "./hook.js";
+import { ApplyHooks, HasValidTargetsHook, PlayCardHook, CheckTargetsHook, MarkAsBlockerHook, SelectTargetsHook, ResolveCardHook, TakeDamageHook } from "./hook.js";
 import { TapCost } from "./cost.js";
 import { ZoneManager, Zone } from "./zone.js";
 import { Step } from "./turn.js";
@@ -250,8 +250,12 @@ export class Player {
         return true;
     }
     takeDamage(source, amount, combat = false) {
-        let a = typeof amount == 'number' ? amount : amount();
-        this.lifeTotal -= a;
+        ApplyHooks(TakeDamageHook, (that, source, amount, combat, destroy) => {
+            if (!(that instanceof Player))
+                return;
+            let a = typeof amount == 'number' ? amount : amount();
+            that.lifeTotal -= a;
+        }, this, source, amount, combat, false);
     }
     drawCard(amount = 1) {
         for (let i = 0; i < amount; i++) {
@@ -265,8 +269,7 @@ export class Player {
         UI.chooseOptions(this, ["Yes", "No"], 1, message, result => continuation(result[0] == 0));
     }
     getColor(message, continuation) {
-        let colorList = ["white", "blue", "black", "red", "green"];
-        UI.chooseOptions(this, colorList.map(x => new ManaPool({ [x]: 1 }).asHTML + " " + x), 1, message, result => continuation(colorList[result[0]]));
+        UI.chooseOptions(this, Object.keys(Color).map(x => new ManaPool({ [x]: 1 }).asHTML + " " + x), 1, message, result => continuation(Color[result[0]]));
     }
     chooseOptions(descriptions, howMany = 1, message, continuation) {
         UI.chooseOptions(this, descriptions, howMany, message, continuation);
@@ -280,5 +283,9 @@ export class Player {
     }
     devotionTo(...colors) {
         return colors.map(color => this.zones.battlefield.map(x => x.manaCost.simplified[color]).reduce((a, b) => a + b, 0)).reduce((a, b) => a + b, 0);
+    }
+    gainLife(source, amount) {
+        let a = typeof amount == 'number' ? amount : amount();
+        this.lifeTotal += a;
     }
 }
