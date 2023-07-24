@@ -1,10 +1,11 @@
-import { PermanentCard, CreatureCard, AuraCard, SpellCard, TypeList } from "./card.js";
+import type { Player } from "./player.js";
+import { PermanentCard, CreatureCard, AuraCard, SpellCard, SimpleSpellCard, TypeList } from "./card.js";
 import { SimpleActivatedAbility, TargetedActivatedAbility, FirstStrikeAbility, VigilanceAbility, TrampleAbility } from "./ability.js";
 import { MultipleEffect, AddManaEffect, CreateTokenEffect, AddCounterEffect, ApplyAbilityEffect, SetStatsEffect, SetTypesEffect, DelayedEffect, MoveCardsEffect, QueueCardsEffect } from "./effect.js";
 import { SacrificeSelfCost, TapCost } from "./cost.js";
 import { ManaCost, ManaPool, Color } from "./mana.js";
 import { PlayCardHook, BeginStepHook, StatsHook, ProtectionAbility, FlyingAbility, HeroicAbility, ResolveCardHook, IndestructibleAbility, TypesHook, AbilitiesHook, MenaceAbility, TakeDamageHook, CardClickHook, SelectTargetsHook, WardAbility } from "./hook.js";
-import { Creature } from "./permanent.js";
+import { Creature, Planeswalker } from "./permanent.js";
 import { Battlefield, TurnManager } from "./globals.js";
 import { Step } from "./turn.js";
 import { Zone } from "./zone.js";
@@ -52,16 +53,13 @@ export class LlanowarElvesCard extends CreatureCard {
   makeEquivalentCopy = () => new LlanowarElvesCard();
 }
 
-export class GiantGrowthCard extends SpellCard {
+export class GiantGrowthCard extends SimpleSpellCard<Creature> {
   constructor() {
     super(
       "Giant Growth",
       ["Instant"],
       "Target creature gets +3/+3 until end of turn.",
-      target => target.length == 1 && target[0] instanceof Creature,
-      (p, s) => Battlefield.filter(x => x instanceof Creature).length > 0,
-      (self, targets) => {
-        let target = targets[0] as Creature;
+      (self, target) => {
         new ApplyAbilityEffect(new StatsHook((me, orig, that, stat) => {
           if (!me.is(that)) return orig(that, stat);
           return orig(that, stat) + 3;
@@ -349,6 +347,18 @@ class FloweringOfTheWhiteTreeCard extends PermanentCard {
           return orig(that);
         })
       ]
+    );
+  }
+}
+
+export class LightningBoltCard extends SimpleSpellCard<Creature | Player | Planeswalker> {
+  constructor() {
+    super(
+      "Lightning Bolt",
+      ["Instant"],
+      "Lightning Bolt deals 3 damage to any target.",
+      (self, target) => { target.takeDamage(self, 3); },
+      new ManaCost({ red: 1 })
     );
   }
 }

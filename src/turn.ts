@@ -2,7 +2,7 @@ import type { Player } from "./player.js";
 import type { Effect } from "./effect.js";
 import { VigilanceAbility, TrampleAbility } from "./ability.js";
 import { Battlefield, StackManager, TurnManager } from "./globals.js";
-import { Permanent, Creature } from "./permanent.js";
+import { Permanent, Creature, Planeswalker } from "./permanent.js";
 import { TapCost } from "./cost.js";
 import { ApplyHooks, BeginStepHook, ValidStateHook } from "./hook.js";
 
@@ -28,7 +28,6 @@ interface StackDelay {
 export class TurnManagerClass {
   playerList: Player[] = [];
   currentPlayer: Player;
-  defendingPlayer: Player;
   passedPriority: boolean;
   endedPhase: boolean;
   endedTurn: boolean;
@@ -71,26 +70,6 @@ export class TurnManagerClass {
       } else if (that.step == Step.declare_attackers) {
         // ??? does anything need to be done here
       } else if (that.step == Step.declare_blockers) {
-        if (that.currentPlayer.attackers.length) {
-          // Ask for defending player.
-          if (that.playerList.length > 2) {
-            that.currentPlayer.selectTargets(
-              undefined,
-              t =>
-                t.length == 1 &&
-                that.playerList.includes(t[0]) && // Clever avoidance of using `Player`
-                t[0] != that.currentPlayer,
-              () => that.playerList.length >= 2,
-              "Select defending player",
-              result => {
-                that.defendingPlayer = result[0];
-              }
-            );
-          } else
-            that.defendingPlayer = that.playerList.filter(
-              x => x != that.currentPlayer
-            )[0];
-        }
         for (let i of that.currentPlayer.attackers) {
           if (!i.hasAbility(VigilanceAbility)) new TapCost(true).pay(i, true);
         }
@@ -102,16 +81,12 @@ export class TurnManagerClass {
             if (bs.length > 1) {
               while (bs.length > 1) {
                 let chosen: Creature;
-                that.defendingPlayer.selectTargets(
+                i.defendingPlayer.selectTargets(
                   undefined,
-                  t =>
-                    t.length == 1 &&
-                    bs.includes(i),
+                  t => t.length == 1 && bs.includes(i),
                   () => true, // Should always be blockers
                   "Select an order for the blockers",
-                  result => {
-                    chosen = result[0] as Creature;
-                  }
+                  result => { chosen = result[0] as Creature; }
                 );
                 bs2.push(chosen);
                 bs.splice(bs.indexOf(chosen), 1);
@@ -128,19 +103,19 @@ export class TurnManagerClass {
                 p -= v;
                 n++;
               }
-              if (p) that.defendingPlayer.takeDamage(i, p, true);
+              if (p) i.attacking.takeDamage(i, p, true);
             } else {
               i.dealCombatDamage(bs2[0]);
             }
           } else {
             // Unblocked. Deal damage.
-            that.defendingPlayer.takeDamage(i, i.power, true);
+            i.attacking.takeDamage(i, i.power, true);
           }
         }
         that.stateBasedActions(); // In case something died
         // Remove "attacker" and "blocker" status now that they are no longer needed
         for (let i of Battlefield.filter(x => x instanceof Creature)) {
-          (i as Creature).attacking = false;
+          (i as Creature).attacking = undefined;
           (i as Creature).blocking = [];
         }
       } else if (that.step == Step.draw) {
@@ -168,7 +143,7 @@ export class TurnManagerClass {
       this.turn++;
       for (let p of this.playerList) p.manaPool.mana = p.manaPool.mana.filter(x => x.keep);
       for (let i of Battlefield.filter(x => x instanceof Creature)) {
-        (i as Creature).attacking = false;
+        (i as Creature).attacking = undefined;
       }
       this.currentPlayer =
         this.playerList[
@@ -223,6 +198,7 @@ export class TurnManagerClass {
   stateBasedActions() {
     for (let i of Battlefield) {
       if (i instanceof Creature && i.damage >= i.toughness) i.destroy();
+      if (i instanceof Planeswalker && i.counters["loyalty"] == 0) i.destroy();
     }
   }
 }

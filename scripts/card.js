@@ -24,7 +24,7 @@ export class Card {
     owner;
     uiElement;
     click;
-    constructor(name, types, text = "", mana) {
+    constructor(name, types, text, mana) {
         this.name = name;
         this.types = new TypeList(types);
         if (!this.types.main.length)
@@ -93,7 +93,7 @@ export class Card {
 export class PermanentCard extends Card {
     abilities = [];
     representedPermanent;
-    constructor(name, types, text = "", mana, abilities) {
+    constructor(name, types, text, mana, ...abilities) {
         if (!types.includes("Creature") &&
             !types.includes("Enchantment") &&
             !types.includes("Artifact") &&
@@ -102,8 +102,7 @@ export class PermanentCard extends Card {
             throw new Error("Permanent card " + name + " has no permanent types! types=" + types);
         }
         super(name, types, text, mana);
-        if (abilities)
-            this.abilities = Array.isArray(abilities) ? abilities : [abilities];
+        this.abilities = abilities;
     }
     makeEquivalentCopy;
 }
@@ -112,7 +111,7 @@ export class SpellCard extends Card {
     baseValidate;
     basePossible;
     controller;
-    constructor(name, types, text = "", validate, possible, func, mana) {
+    constructor(name, types, text, validate, possible, func, mana) {
         super(name, (types.includes("Instant") || types.includes("Sorcery")) ? types : ["Instant", ...types], text, mana);
         this.resolve = func;
         this.baseValidate = validate;
@@ -130,16 +129,25 @@ export class SpellCard extends Card {
     }
     makeEquivalentCopy;
 }
+export class SimpleSpellCard extends SpellCard {
+    constructor(name, types, text, func, mana) {
+        let targetType;
+        let possible = (self, field) => field.filter(x => x instanceof targetType).length > 0;
+        let validate = (target) => target.length == 1 && target[0] instanceof targetType;
+        let func2 = (self, targets) => func(self, targets[0]);
+        super(name, types, text, validate, possible, func2, mana);
+    }
+}
 export class CreatureCard extends PermanentCard {
     power = 1;
     toughness = 1;
-    constructor(name, types, text = "", power, toughness, mana, abilities) {
+    constructor(name, types, text, power, toughness, mana, ...abilities) {
         super(name, types.includes("Creature") ? types : ["Creature", ...types], text, mana, abilities);
         this.power = power;
         this.toughness = toughness;
     }
-    markAsAttacker(real = true) {
-        return this.representedPermanent?.markAsAttacker(real);
+    markAsAttacker(attacking) {
+        return this.representedPermanent?.markAsAttacker(attacking);
     }
     unmarkAsAttacker(real = true) {
         return this.representedPermanent?.unmarkAsAttacker(real);
@@ -154,7 +162,7 @@ export class CreatureCard extends PermanentCard {
 export class AuraCard extends PermanentCard {
     baseValidate;
     attached;
-    constructor(name, text = "", validate, mana, abilities) {
+    constructor(name, text, validate, mana, ...abilities) {
         super(name, ["Enchantment", "Aura"], text, mana, abilities);
         this.baseValidate = validate;
     }
@@ -170,5 +178,12 @@ export class AuraCard extends PermanentCard {
         return ApplyHooks(CheckTargetsHook, function (that, targets) {
             return that.baseValidate(targets[0]);
         }, self, [attached]);
+    }
+}
+export class PlaneswalkerCard extends PermanentCard {
+    startingLoyalty;
+    constructor(name, type, text, loyalty, mana, ...abilities) {
+        super(name, ["Legendary", "Planeswalker", type], text, mana, abilities);
+        this.startingLoyalty = loyalty;
     }
 }

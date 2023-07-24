@@ -2,7 +2,7 @@ import type { Player, SelectionData } from "./player.js";
 import type { Cost } from "./cost.js";
 import type { AuraCard, SpellCard, TypeList } from "./card.js";
 import type { Card } from "./card.js";
-import { Permanent, Creature } from "./permanent.js";
+import { Permanent, Creature, Planeswalker } from "./permanent.js";
 import { TurnManagerClass, Step } from "./turn.js";
 import { Battlefield, TurnManager } from "./globals.js";
 import { Ability, ComputedAbility, ReachAbility } from "./ability.js";
@@ -151,8 +151,8 @@ export class MenaceAbility extends ValidStateHook {
   }
 }
 
-export class TakeDamageHook extends Hook<Creature | Player, [Card | Permanent, number | (() => number), boolean, boolean], void> {
-  constructor(apply: (me: Permanent, orig: (that: Creature | Player, source: Card | Permanent, amount: number | (() => number), combat: boolean, destroy: boolean) => void, that: Creature | Player, source: Card | Permanent, amount: number | (() => number), combat: boolean, destroy: boolean) => void) {
+export class TakeDamageHook extends Hook<Creature | Player | Planeswalker, [Card | Permanent, number | (() => number), boolean, boolean], void> {
+  constructor(apply: (me: Permanent, orig: (that: Creature | Player | Planeswalker, source: Card | Permanent, amount: number | (() => number), combat: boolean, destroy: boolean) => void, that: Creature | Player | Planeswalker, source: Card | Permanent, amount: number | (() => number), combat: boolean, destroy: boolean) => void) {
     super(apply);
   }
 }

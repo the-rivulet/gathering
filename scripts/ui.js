@@ -4,7 +4,6 @@ import { AuraCard, PermanentCard, SpellCard, CreatureCard } from "./card.js";
 import { TurnManager, Battlefield, StackManager, Settings } from "./globals.js";
 import { ApplyHooks, CardClickHook } from "./hook.js";
 import { Zone } from "./zone.js";
-import { Step } from "./turn.js";
 let getId = (x) => document.getElementById(x);
 let textAsHTML = function (text) {
     let t = text
@@ -119,10 +118,10 @@ function renderRow(cards, offset, valids = []) {
                 tt.classList.add("tapped");
             else
                 tt.classList.remove("tapped");
-            let canAttack = false, canBlock = false, attacking = false, blocking = [];
+            let canAttack = false, canBlock = false, attacking, blocking = [];
             if (card instanceof CreatureCard) {
                 let creature = card.representedPermanent;
-                canAttack = creature.markAsAttacker(false);
+                canAttack = creature.markAsAttacker();
                 canBlock = creature.markAsBlocker();
                 attacking = creature.attacking;
                 blocking = creature.blocking;
@@ -173,10 +172,10 @@ function renderRow(cards, offset, valids = []) {
                     card.play();
                 else if (card.zone == "battlefield" && card instanceof PermanentCard && card.representedPermanent) {
                     let c = card.representedPermanent;
-                    let canAttack = false, canBlock = false, attacking = false, blocking = [];
+                    let canAttack = false, canBlock = false, attacking, blocking = [];
                     if (card instanceof CreatureCard) {
                         let creature = card.representedPermanent;
-                        canAttack = creature.markAsAttacker(false);
+                        canAttack = creature.markAsAttacker();
                         canBlock = creature.markAsBlocker();
                         attacking = creature.attacking;
                         blocking = creature.blocking;
@@ -268,7 +267,7 @@ function renderBattlefield() {
         let elem = getId("playerinfo" + i);
         elem.innerHTML = `
     ${p.name}<br/>
-    ${TurnManager.defendingPlayer?.is(p) && TurnManager.step == Step.declare_blockers && TurnManager.currentPlayer.attackers.length ? "(" + (p.lifeTotal - TurnManager.currentPlayer.attackers.reduce((a, b) => a + b.power, 0)) + " ← ) " : ""}${p.lifeTotal}/${p.startingLifeTotal} life<br/>`;
+    ${p.lifeTotal}/${p.startingLifeTotal} life<br/>`;
         elem.innerHTML += p.manaPool.asHTML;
         // Click on a playerinfo to add/remove
         elem.onclick = function (e) {

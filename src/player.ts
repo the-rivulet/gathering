@@ -1,6 +1,6 @@
 import { Card, PermanentCard, CreatureCard, AuraCard, SpellCard } from "./card.js";
 import { ManaPool, SimpleManaObject, Color } from "./mana.js";
-import { Creature, Permanent } from "./permanent.js";
+import { Creature, Permanent, Planeswalker } from "./permanent.js";
 import { Battlefield, TurnManager, StackManager } from "./globals.js";
 import { ApplyHooks, HasValidTargetsHook, PlayCardHook, CheckTargetsHook, MarkAsBlockerHook, SelectTargetsHook, ResolveCardHook, TakeDamageHook } from "./hook.js";
 import { TapCost } from "./cost.js";
@@ -201,15 +201,14 @@ export class Player {
       else if (card instanceof SpellCard) { card.resolve(card, targets); that.moveCardTo(card, Zone.graveyard); }
     }, this, card, targets);
   }
-  markAsAttacker(card: Creature, real = true) {
-    if (card.controller != this || TurnManager.step != Step.declare_attackers || TurnManager.currentPlayer != this || card.attacking) return false;
-    if (!new TapCost().pay(card, false)) return false;
-    if (real) card.attacking = true;
+  markAsAttacker(card: Creature, attacking: Player | Planeswalker, real = true) {
+    if (!card.controller.is(this) || TurnManager.step != Step.declare_attackers || !TurnManager.currentPlayer.is(this) || card.attacking || !new TapCost().pay(card, false)) return false;
+    if (real) card.attacking = attacking;
     return true;
   }
   unmarkAsAttacker(card: Creature, real = true) {
-    if (card.controller != this || TurnManager.step != Step.declare_attackers || TurnManager.currentPlayer != this || !card.attacking) return false;
-    if (real) card.attacking = false;
+    if (!card.controller.is(this) || TurnManager.step != Step.declare_attackers || !TurnManager.currentPlayer.is(this) || !card.attacking) return false;
+    if (real) card.attacking = undefined;
     return true;
   }
   get attackers() {
@@ -217,23 +216,20 @@ export class Player {
   }
   markAsBlocker(card: Creature, blocking?: Creature, real = true) {
     return ApplyHooks(MarkAsBlockerHook, (that, card, blocking, real) => {
-      if (blocking && (that.is(blocking.controller) || !blocking.attacking)) return false;
-      if (card.controller != that || TurnManager.step != Step.declare_blockers || TurnManager.defendingPlayer != that || card.tapped) return false;
-      if (card.blocking.length) return false;
+      if ((blocking && (that.is(blocking.controller) || !blocking.attacking || card.blocking.includes(blocking))) || !card.controller.is(that) || TurnManager.step != Step.declare_blockers || !blocking.defendingPlayer.is(that) || card.tapped || card.blocking.length) return false;
       if (blocking && real) card.blocking.push(blocking);
       return true;
     }, this, card, blocking, real);
   }
   unmarkAsBlocker(card: Creature, blocking?: Creature, real = true) {
-    if (card.controller != this || TurnManager.step != Step.declare_blockers || TurnManager.defendingPlayer != this) return false;
-    if (!blocking && (this.is(blocking.controller) || !card.blocking.includes(blocking))) return false;
+    if ((blocking && (this.is(blocking.controller) || !blocking.attacking || !card.blocking.includes(blocking))) || !card.controller.is(this) || TurnManager.step != Step.declare_blockers || !blocking.defendingPlayer.is(this)) return false;
     if (blocking && real) card.blocking.splice(card.blocking.indexOf(blocking), 1);
     return true;
   }
   takeDamage(source: Card | Permanent, amount: number | (() => number), combat = false) {
     ApplyHooks(TakeDamageHook, (that, source, amount, combat, destroy) => {
       if (!(that instanceof Player)) return;
-      let a = typeof amount == "number" ? amount : amount();;
+      let a = typeof amount == "number" ? amount : amount();
       that.lifeTotal -= a;
     }, this, source, amount, combat, false);
   }
@@ -264,7 +260,7 @@ export class Player {
     return colors.map(color => this.zones.battlefield.map(x => x.manaCost.simplified[color]).reduce((a, b) => a + b, 0)).reduce((a, b) => a + b, 0);
   }
   gainLife(source: Card | Permanent, amount: number | (() => number)) {
-    let a = typeof amount == "number" ? amount : amount();;
+    let a = typeof amount == "number" ? amount : amount();
     this.lifeTotal += a;
   }
 }

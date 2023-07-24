@@ -1,5 +1,5 @@
 import type { Player } from "./player.js";
-import type { Creature, Permanent } from "./permanent.js";
+import type { Creature, Permanent, Planeswalker } from "./permanent.js";
 import { ManaPool, SimpleManaObject, ManaCost, ManaUtils } from "./mana.js";
 import { ActivatedAbility, SimpleActivatedAbility, TargetedActivatedAbility } from "./ability.js";
 import { Card, AuraCard, PermanentCard, SpellCard, CreatureCard } from "./card.js";
@@ -111,10 +111,10 @@ function renderRow(cards: Card[], offset: number, valids: Card[] = []) {
       let c = card.representedPermanent;
       if (c.tapped) tt.classList.add("tapped");
       else tt.classList.remove("tapped");
-      let canAttack = false, canBlock = false, attacking = false, blocking: Creature[] = [];
+      let canAttack = false, canBlock = false, attacking: Player | Planeswalker, blocking: Creature[] = [];
       if (card instanceof CreatureCard) {
         let creature = card.representedPermanent;
-        canAttack = creature.markAsAttacker(false);
+        canAttack = creature.markAsAttacker();
         canBlock = creature.markAsBlocker();
         attacking = creature.attacking;
         blocking = creature.blocking;
@@ -158,10 +158,10 @@ function renderRow(cards: Card[], offset: number, valids: Card[] = []) {
         else if (card.zone == "hand") card.play();
         else if (card.zone == "battlefield" && card instanceof PermanentCard && card.representedPermanent) {
           let c = card.representedPermanent;
-          let canAttack = false, canBlock = false, attacking = false, blocking: Creature[] = [];
+          let canAttack = false, canBlock = false, attacking: Player | Planeswalker, blocking: Creature[] = [];
           if (card instanceof CreatureCard) {
             let creature = card.representedPermanent as Creature;
-            canAttack = creature.markAsAttacker(false);
+            canAttack = creature.markAsAttacker();
             canBlock = creature.markAsBlocker();
             attacking = creature.attacking;
             blocking = creature.blocking;
@@ -247,7 +247,7 @@ function renderBattlefield() {
     let elem = getId("playerinfo" + i);
     elem.innerHTML = `
     ${p.name}<br/>
-    ${TurnManager.defendingPlayer?.is(p) && TurnManager.step == Step.declare_blockers && TurnManager.currentPlayer.attackers.length ? "(" + (p.lifeTotal - TurnManager.currentPlayer.attackers.reduce((a, b) => a + b.power, 0)) + " ← ) " : ""}${p.lifeTotal}/${p.startingLifeTotal} life<br/>`;
+    ${p.lifeTotal}/${p.startingLifeTotal} life<br/>`;
     elem.innerHTML += p.manaPool.asHTML;
     // Click on a playerinfo to add/remove
     elem.onclick = function (e) {

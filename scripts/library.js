@@ -1,4 +1,4 @@
-import { PermanentCard, CreatureCard, AuraCard, SpellCard, TypeList } from "./card.js";
+import { PermanentCard, CreatureCard, AuraCard, SpellCard, SimpleSpellCard, TypeList } from "./card.js";
 import { SimpleActivatedAbility, FirstStrikeAbility, VigilanceAbility, TrampleAbility } from "./ability.js";
 import { MultipleEffect, AddManaEffect, CreateTokenEffect, AddCounterEffect, ApplyAbilityEffect, SetStatsEffect, SetTypesEffect, DelayedEffect, MoveCardsEffect, QueueCardsEffect } from "./effect.js";
 import { SacrificeSelfCost, TapCost } from "./cost.js";
@@ -27,10 +27,9 @@ export class LlanowarElvesCard extends CreatureCard {
     }
     makeEquivalentCopy = () => new LlanowarElvesCard();
 }
-export class GiantGrowthCard extends SpellCard {
+export class GiantGrowthCard extends SimpleSpellCard {
     constructor() {
-        super("Giant Growth", ["Instant"], "Target creature gets +3/+3 until end of turn.", target => target.length == 1 && target[0] instanceof Creature, (p, s) => Battlefield.filter(x => x instanceof Creature).length > 0, (self, targets) => {
-            let target = targets[0];
+        super("Giant Growth", ["Instant"], "Target creature gets +3/+3 until end of turn.", (self, target) => {
             new ApplyAbilityEffect(new StatsHook((me, orig, that, stat) => {
                 if (!me.is(that))
                     return orig(that, stat);
@@ -227,6 +226,11 @@ class FloweringOfTheWhiteTreeCard extends PermanentCard {
                 return orig(that);
             })
         ]);
+    }
+}
+export class LightningBoltCard extends SimpleSpellCard {
+    constructor() {
+        super("Lightning Bolt", ["Instant"], "Lightning Bolt deals 3 damage to any target.", (self, target) => { target.takeDamage(self, 3); }, new ManaCost({ red: 1 }));
     }
 }
 // TODO: rest of deck

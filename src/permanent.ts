@@ -1,6 +1,6 @@
 import type { ManaCost } from "./mana.js";
 import type { Player } from "./player.js";
-import { Card, PermanentCard, CreatureCard, TypeList } from "./card.js";
+import { Card, PermanentCard, CreatureCard, PlaneswalkerCard, TypeList } from "./card.js";
 import { Ability, ComputedAbility, FirstStrikeAbility, DoubleStrikeAbility } from "./ability.js";
 import { Battlefield } from "./globals.js";
 import { ApplyHooks, DestroyPermanentHook, StatsHook, TypesHook, AbilitiesHook, TakeDamageHook } from "./hook.js";
@@ -79,13 +79,10 @@ export class Permanent {
   addCounter(counter: string, amount = 1) {
     if (!this.counters[counter]) this.counters[counter] = 0;
     this.counters[counter] += amount;
-    /*TriggerEffects(Events.onAddCounter, {
-      player: this.owner,
-      card: this,
-      counter: counter,
-      amount: amount,
-      total: this.counters[counter],
-    });*/
+  }
+  removeCounter(counter: string, amount = 1) {
+    if (!this.counters[counter]) return;
+    this.counters[counter] = Math.max(0, this.counters[counter] - amount);
   }
   get abilities(): Ability[] {
     return ApplyHooks(AbilitiesHook, that => {
@@ -111,7 +108,7 @@ export class Creature extends Permanent {
   staticPower: number | ((card: Creature) => number);
   staticToughness: number | ((card: Creature) => number);
   summoningSickness = true;
-  attacking = false;
+  attacking: Player | Planeswalker;
   blocking: Creature[] = [];
   damage = 0;
   ringBearer = false;
@@ -160,8 +157,11 @@ export class Creature extends Permanent {
   get blockedBy() {
     return (Battlefield.filter(x => x instanceof Creature && x.blocking.includes(this)) as Creature[]);
   }
-  markAsAttacker(real = true) {
-    return this.controller.markAsAttacker(this, real);
+  get defendingPlayer() {
+    return (this.attacking instanceof Planeswalker ? this.attacking.controller : this.attacking);
+  }
+  markAsAttacker(attacking?: Player | Planeswalker) {
+    return this.controller.markAsAttacker(this, attacking);
   }
   unmarkAsAttacker(real = true) {
     return this.controller.unmarkAsAttacker(this, real);
@@ -183,8 +183,8 @@ export class Creature extends Permanent {
   takeDamage(source: Card | Permanent, amount: number | (() => number), combat = false, destroy?: boolean) {
     ApplyHooks(TakeDamageHook, (that, source, amount, combat, destroy) => {
       if (!(that instanceof Creature)) return;
-      if (!destroy) destroy = !combat;
-      let a = typeof amount == "number" ? amount : amount();;
+      if (destroy == undefined) destroy = !combat;
+      let a = typeof amount == "number" ? amount : amount();
       that.damage += a;
       if (destroy && that.damage >= that.toughness) that.destroy();
     }, this, source, amount, combat, destroy);
@@ -197,5 +197,28 @@ export class Creature extends Permanent {
 export class Emblem extends Permanent {
   constructor(name: string, text: string, abilities: Ability | Ability[]) {
     super(new PermanentCard(name, ["Emblem"], text, undefined, abilities));
+  }
+}
+
+export class Planeswalker extends Permanent {
+  constructor(card: PlaneswalkerCard) {
+    super(card);
+    this.counters["loyalty"] = card.startingLoyalty;
+  }
+  get loyalty() {
+    return this.counters["loyalty"];
+  }
+  set loyalty(value: number) {
+    let v = Math.max(0, value);
+    this.counters["loyalty"] = v;
+  }
+  takeDamage(source: Card | Permanent, amount: number | (() => number), combat = false, destroy?: boolean) {
+    ApplyHooks(TakeDamageHook, (that, source, amount, combat, destroy) => {
+      if (!(that instanceof Planeswalker)) return;
+      if (destroy == undefined) destroy = !combat;
+      let a = typeof amount == "number" ? amount : amount();
+      that.loyalty -= a;
+      if (that.loyalty <= 0 && destroy) that.destroy();
+    }, this, source, amount, combat, destroy);
   }
 }

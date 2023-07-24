@@ -208,20 +208,18 @@ export class Player {
             }
         }, this, card, targets);
     }
-    markAsAttacker(card, real = true) {
-        if (card.controller != this || TurnManager.step != Step.declare_attackers || TurnManager.currentPlayer != this || card.attacking)
-            return false;
-        if (!new TapCost().pay(card, false))
+    markAsAttacker(card, attacking, real = true) {
+        if (!card.controller.is(this) || TurnManager.step != Step.declare_attackers || !TurnManager.currentPlayer.is(this) || card.attacking || !new TapCost().pay(card, false))
             return false;
         if (real)
-            card.attacking = true;
+            card.attacking = attacking;
         return true;
     }
     unmarkAsAttacker(card, real = true) {
-        if (card.controller != this || TurnManager.step != Step.declare_attackers || TurnManager.currentPlayer != this || !card.attacking)
+        if (!card.controller.is(this) || TurnManager.step != Step.declare_attackers || !TurnManager.currentPlayer.is(this) || !card.attacking)
             return false;
         if (real)
-            card.attacking = false;
+            card.attacking = undefined;
         return true;
     }
     get attackers() {
@@ -229,11 +227,7 @@ export class Player {
     }
     markAsBlocker(card, blocking, real = true) {
         return ApplyHooks(MarkAsBlockerHook, (that, card, blocking, real) => {
-            if (blocking && (that.is(blocking.controller) || !blocking.attacking))
-                return false;
-            if (card.controller != that || TurnManager.step != Step.declare_blockers || TurnManager.defendingPlayer != that || card.tapped)
-                return false;
-            if (card.blocking.length)
+            if ((blocking && (that.is(blocking.controller) || !blocking.attacking || card.blocking.includes(blocking))) || !card.controller.is(that) || TurnManager.step != Step.declare_blockers || !blocking.defendingPlayer.is(that) || card.tapped || card.blocking.length)
                 return false;
             if (blocking && real)
                 card.blocking.push(blocking);
@@ -241,9 +235,7 @@ export class Player {
         }, this, card, blocking, real);
     }
     unmarkAsBlocker(card, blocking, real = true) {
-        if (card.controller != this || TurnManager.step != Step.declare_blockers || TurnManager.defendingPlayer != this)
-            return false;
-        if (!blocking && (this.is(blocking.controller) || !card.blocking.includes(blocking)))
+        if ((blocking && (this.is(blocking.controller) || !blocking.attacking || !card.blocking.includes(blocking))) || !card.controller.is(this) || TurnManager.step != Step.declare_blockers || !blocking.defendingPlayer.is(this))
             return false;
         if (blocking && real)
             card.blocking.splice(card.blocking.indexOf(blocking), 1);
@@ -254,7 +246,6 @@ export class Player {
             if (!(that instanceof Player))
                 return;
             let a = typeof amount == "number" ? amount : amount();
-            ;
             that.lifeTotal -= a;
         }, this, source, amount, combat, false);
     }
@@ -287,7 +278,6 @@ export class Player {
     }
     gainLife(source, amount) {
         let a = typeof amount == "number" ? amount : amount();
-        ;
         this.lifeTotal += a;
     }
 }
