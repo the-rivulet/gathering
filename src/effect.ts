@@ -1,5 +1,6 @@
 import type { Ability } from "./ability.js";
 import type { Step } from "./turn.js";
+import type { StackCard } from "./stack.js";
 import type { Permanent, Creature } from "./permanent.js";
 import { SimpleManaObject, ManaPool } from "./mana.js";
 import { Card, PermanentCard, TypeList } from "./card.js";
@@ -152,6 +153,19 @@ export class MoveCardsEffect extends Effect {
   resolve(card: Permanent) {
     for (let i of this.cards) {
       card.controller.moveCardTo(i, this.zone);
+    }
+  }
+}
+
+export class QueueCardsEffect extends Effect {
+  cards: StackCard[];
+  constructor(...cards: StackCard[]) {
+    super();
+    this.cards = cards;
+  }
+  resolve(card: Permanent) {
+    for (let i of this.cards) {
+      StackManager.add(i);
     }
   }
 }

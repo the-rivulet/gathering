@@ -171,7 +171,7 @@ export class Player {
       return true;
     }
   }
-  async play(card: Card, free = false, noCheck = false, forceTargets?: any[]) {
+  play(card: Card, free = false, noCheck = false, forceTargets?: any[]) {
     ApplyHooks(PlayCardHook, (that, card, free, noCheck, forceTargets) => {
       if (card.hasType("Land") && card instanceof PermanentCard) return that.playLand(card, free, noCheck);
       else if (card instanceof AuraCard)

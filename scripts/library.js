@@ -1,9 +1,9 @@
 import { PermanentCard, CreatureCard, AuraCard, SpellCard, TypeList } from "./card.js";
 import { SimpleActivatedAbility, FirstStrikeAbility, VigilanceAbility, TrampleAbility } from "./ability.js";
-import { MultipleEffect, AddManaEffect, CreateTokenEffect, AddCounterEffect, ApplyAbilityEffect, SetStatsEffect, SetTypesEffect, DelayedEffect, MoveCardsEffect } from "./effect.js";
+import { MultipleEffect, AddManaEffect, CreateTokenEffect, AddCounterEffect, ApplyAbilityEffect, SetStatsEffect, SetTypesEffect, DelayedEffect, MoveCardsEffect, QueueCardsEffect } from "./effect.js";
 import { SacrificeSelfCost, TapCost } from "./cost.js";
 import { ManaCost, ManaPool, Color } from "./mana.js";
-import { PlayCardHook, BeginStepHook, StatsHook, ProtectionAbility, FlyingAbility, HeroicAbility, ResolveCardHook, IndestructibleAbility, TypesHook, AbilitiesHook, MenaceAbility, TakeDamageHook, CardClickHook } from "./hook.js";
+import { PlayCardHook, BeginStepHook, StatsHook, ProtectionAbility, FlyingAbility, HeroicAbility, ResolveCardHook, IndestructibleAbility, TypesHook, AbilitiesHook, MenaceAbility, TakeDamageHook, CardClickHook, SelectTargetsHook } from "./hook.js";
 import { Creature } from "./permanent.js";
 import { Battlefield, TurnManager } from "./globals.js";
 import { Step } from "./turn.js";
@@ -196,6 +196,22 @@ class RadiantScrollwielderCard extends CreatureCard {
                 }
             })
         ]);
+    }
+}
+class ZadaHedronGrinderCard extends CreatureCard {
+    constructor() {
+        super("Zada, Hedron Grinder", ["Creature", "Legendary", "Goblin", "Ally"], `Whenever you cast an instant or sorcery spell that targets only Zada, Hedron Grinder,
+      copy that spell for each other creature you control that the spell could target.
+      Each copy targets a different one of those creatures.`, 3, 3, new ManaCost({ red: 1, generic: 3 }), new SelectTargetsHook((me, orig, that, casting, validate, possible, message, continuation, limitOne) => {
+            return orig(that, casting, validate, possible, message, result => {
+                continuation(result);
+                if (casting instanceof SpellCard && result.length == 1 && result[0].is(me)) {
+                    for (let i of Battlefield.filter(x => !x.is(me) && validate([x]))) {
+                        new QueueCardsEffect({ card: casting, targets: [i] }).queue(me);
+                    }
+                }
+            }, limitOne);
+        }));
     }
 }
 // TODO: rest of deck

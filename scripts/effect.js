@@ -141,3 +141,15 @@ export class MoveCardsEffect extends Effect {
         }
     }
 }
+export class QueueCardsEffect extends Effect {
+    cards;
+    constructor(...cards) {
+        super();
+        this.cards = cards;
+    }
+    resolve(card) {
+        for (let i of this.cards) {
+            StackManager.add(i);
+        }
+    }
+}

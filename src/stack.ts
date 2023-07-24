@@ -2,14 +2,13 @@ import type { Card } from "./card.js";
 import type { Permanent } from "./permanent.js";
 import type { Effect } from "./effect.js";
 import { TurnManager, Settings } from "./globals.js";
-import { Step } from "./turn.js";
 
-interface StackCard {
+export interface StackCard {
   card: Card;
   targets?: any[];
 }
 
-interface StackEffect {
+export interface StackEffect {
   effect: Effect;
   permanent: Permanent;
 }
