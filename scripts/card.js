@@ -146,7 +146,7 @@ export class SplitSpellCard extends SpellCard {
         if (parts.map(x => x.types).filter((x, i, a) => a.indexOf(x) == i).length > 1)
             throw new Error("Tried to create split spell card with non-matching types!");
         super(parts.map(x => x.name).join(" / "), parts[0].types.list, parts.map(x => x.getTooltip(UI.textAsHTML)).join("<br/><br/>"), (self, targets) => parts.map(x => x.validate(self, targets)).length > 0, (self, field) => parts.map(x => x.possible(self, field)).length > 0, (self, targets) => {
-            let castable = parts.filter(x => self.controller.manaPool.pay(x, self.controller, false));
+            let castable = parts.filter(x => x.castable(self.controller));
             self.controller.chooseOptions(castable.map(x => "Cast " + x.name), 1, "Choose one half to cast", choices => {
                 let c = castable[choices[0]];
                 self.controller.castSpell(c);
