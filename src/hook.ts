@@ -1,9 +1,10 @@
 import type { Player, SelectionData } from "./player.js";
-import { Permanent, Creature } from "./permanent.js";
+import type { Cost } from "./cost.js";
 import type { AuraCard, SpellCard, TypeList } from "./card.js";
 import type { Card } from "./card.js";
+import { Permanent, Creature } from "./permanent.js";
 import { TurnManagerClass, Step } from "./turn.js";
-import { Battlefield } from "./globals.js";
+import { Battlefield, TurnManager } from "./globals.js";
 import { Ability, ComputedAbility, ReachAbility } from "./ability.js";
 
 /**
@@ -159,5 +160,18 @@ export class TakeDamageHook extends Hook<Creature | Player, [Card | Permanent, n
 export class CardClickHook extends Hook<Card, [], void> {
   constructor(apply: (me: Permanent, orig: (that: Card) => void, that: Card) => void) {
     super(apply);
+  }
+}
+
+export class WardAbility extends CardClickHook {
+  cost: Cost;
+  constructor(cost: Cost) {
+    super((me, orig, that) => {
+      if (!TurnManager.ongoingSelection || !that.is(me.representedCard)) return orig(that);
+      if (!cost.payPlayer(TurnManager.selectingPlayer, false)) return;
+      cost.payPlayer(TurnManager.selectingPlayer, true);
+      orig(that);
+    });
+    this.cost = cost;
   }
 }

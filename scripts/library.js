@@ -3,7 +3,7 @@ import { SimpleActivatedAbility, FirstStrikeAbility, VigilanceAbility, TrampleAb
 import { MultipleEffect, AddManaEffect, CreateTokenEffect, AddCounterEffect, ApplyAbilityEffect, SetStatsEffect, SetTypesEffect, DelayedEffect, MoveCardsEffect, QueueCardsEffect } from "./effect.js";
 import { SacrificeSelfCost, TapCost } from "./cost.js";
 import { ManaCost, ManaPool, Color } from "./mana.js";
-import { PlayCardHook, BeginStepHook, StatsHook, ProtectionAbility, FlyingAbility, HeroicAbility, ResolveCardHook, IndestructibleAbility, TypesHook, AbilitiesHook, MenaceAbility, TakeDamageHook, CardClickHook, SelectTargetsHook } from "./hook.js";
+import { PlayCardHook, BeginStepHook, StatsHook, ProtectionAbility, FlyingAbility, HeroicAbility, ResolveCardHook, IndestructibleAbility, TypesHook, AbilitiesHook, MenaceAbility, TakeDamageHook, CardClickHook, SelectTargetsHook, WardAbility } from "./hook.js";
 import { Creature } from "./permanent.js";
 import { Battlefield, TurnManager } from "./globals.js";
 import { Step } from "./turn.js";
@@ -50,7 +50,7 @@ export class ForcedAdaptationCard extends AuraCard {
     }
     makeEquivalentCopy = () => new ForcedAdaptationCard();
 }
-// Now for the REAL challenge... Random legendary creatures.
+// Random legendary creatures.
 class KarnLegacyReforgedCard extends CreatureCard {
     constructor() {
         super("Karn, Legacy Reforged", ["Creature", "Artifact", "Legendary", "Golem"], `{CARDNAME}"s power and toughness are each equal to the greatest mana value among artifacts you control.
@@ -212,6 +212,21 @@ class ZadaHedronGrinderCard extends CreatureCard {
                 }
             }, limitOne);
         }));
+    }
+}
+class FloweringOfTheWhiteTreeCard extends PermanentCard {
+    constructor() {
+        super("Flowering of the White Tree", ["Legendary", "Enchantment"], `Legendary creatures you control get +2/+1 and have ward {1}.
+      Nonlegendary creatures you control get +1/+1.`, new ManaCost({ white: 2 }), [
+            new StatsHook((me, orig, that, stat) => {
+                return orig(that, stat) + ((that.hasType("Legendary") && stat == "power") ? 2 : 1);
+            }),
+            new AbilitiesHook((me, orig, that) => {
+                if (that.hasType("Legendary"))
+                    return [...orig(that), new WardAbility(new ManaCost({ generic: 1 }))];
+                return orig(that);
+            })
+        ]);
     }
 }
 // TODO: rest of deck

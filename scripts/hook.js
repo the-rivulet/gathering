@@ -1,6 +1,6 @@
 import { Creature } from "./permanent.js";
 import { Step } from "./turn.js";
-import { Battlefield } from "./globals.js";
+import { Battlefield, TurnManager } from "./globals.js";
 import { Ability, ComputedAbility, ReachAbility } from "./ability.js";
 /**
 * `orig` should be a function that takes `that:` (whatever `this`'s type is) plus the method's parameters, and returns the method's return type.
@@ -139,5 +139,19 @@ export class TakeDamageHook extends Hook {
 export class CardClickHook extends Hook {
     constructor(apply) {
         super(apply);
+    }
+}
+export class WardAbility extends CardClickHook {
+    cost;
+    constructor(cost) {
+        super((me, orig, that) => {
+            if (!TurnManager.ongoingSelection || !that.is(me.representedCard))
+                return orig(that);
+            if (!cost.payPlayer(TurnManager.selectingPlayer, false))
+                return;
+            cost.payPlayer(TurnManager.selectingPlayer, true);
+            orig(that);
+        });
+        this.cost = cost;
     }
 }

@@ -110,7 +110,6 @@ export class ManaPool {
     else return false;
     // Now is probably a good time to see if the rest of the cost is payable before we get into asking about it
     let savePoint = new ManaPool(this.mana);
-    //savePoint.mana = this.mana.slice(0);
     let validPaths: number[][] = [];
     let combo = cost.choices.map(x => 0);
     let keepGoing = true;
@@ -148,14 +147,13 @@ export class ManaPool {
     }
     let decisions = cost.choices.filter((x, i) => validPaths.map(y => y[i]).filter((y, j, a) => a.indexOf(y) == j).length > 1);
     // Ask for the generic mana, plus the real choices
-    if (decisions.length || (cost.required.generic || 0) > 0) {
+    if (spend && (decisions.length || (cost.required.generic || 0) > 0)) {
       player.payComplexCosts(this, cost.required.generic || 0, decisions, (choices, forGeneric) => {
         this.mana = simplePay(this, choices).remain.mana;
         this.mana = simplePay(this, forGeneric).remain.mana;
         this.mana = simplePay(this, { generic: choices.generic }, true).remain.mana;
       });
     }
-
     // Go back to the copied value if you don't want to save the payment
     if (!spend) this.mana = copy.mana;
     return true;
