@@ -1,7 +1,9 @@
+import { ManaCost } from "./mana.js";
 import { Zone } from "./zone.js";
 import { TurnManager } from "./globals.js";
 import { Step } from "./turn.js";
 import { ApplyHooks, HasValidTargetsHook, CheckTargetsHook } from "./hook.js";
+import { UI } from "./ui.js";
 export class TypeList {
     list;
     super;
@@ -136,6 +138,21 @@ export class SimpleSpellCard extends SpellCard {
         let validate = (self, target) => target.length == 1 && target[0] instanceof targetType;
         let func2 = (self, targets) => func(self, targets[0]);
         super(name, types, text, validate, possible, func2, mana);
+    }
+}
+export class SplitSpellCard extends SpellCard {
+    parts;
+    constructor(...parts) {
+        if (parts.map(x => x.types).filter((x, i, a) => a.indexOf(x) == i).length > 1)
+            throw new Error("Tried to create split spell card with non-matching types!");
+        super(parts.map(x => x.name).join(" / "), parts[0].types.list, parts.map(x => x.getTooltip(UI.textAsHTML)).join("<br/><br/>"), (self, targets) => parts.map(x => x.validate(self, targets)).length > 0, (self, field) => parts.map(x => x.possible(self, field)).length > 0, (self, targets) => {
+            let castable = parts.filter(x => self.controller.manaPool.pay(x, self.controller, false));
+            self.controller.chooseOptions(castable.map(x => "Cast " + x.name), 1, "Choose one half to cast", choices => {
+                let c = castable[choices[0]];
+                self.controller.castSpell(c);
+            });
+        }, new ManaCost({ choices: parts.map(x => x.manaCost.mana.choices.flat()) })); // No idea if this will work but whatever
+        this.parts = parts;
     }
 }
 export class CreatureCard extends PermanentCard {

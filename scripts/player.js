@@ -1,4 +1,4 @@
-import { PermanentCard, CreatureCard, AuraCard, SpellCard } from "./card.js";
+import { PermanentCard, CreatureCard, AuraCard, SpellCard, SplitSpellCard } from "./card.js";
 import { ManaPool, Color } from "./mana.js";
 import { Creature, Permanent } from "./permanent.js";
 import { Battlefield, TurnManager, StackManager } from "./globals.js";
@@ -149,7 +149,7 @@ export class Player {
             UI.renderStack();
             return true;
         };
-        if (!free)
+        if (!free && !(card instanceof SplitSpellCard))
             this.manaPool.pay(card, this);
         this.moveCardTo(card, Zone.stack);
         if (forceTargets)

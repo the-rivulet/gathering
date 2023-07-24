@@ -1,4 +1,4 @@
-import { PermanentCard, CreatureCard, AuraCard, SpellCard, SimpleSpellCard, TypeList } from "./card.js";
+import { TypeList, PermanentCard, CreatureCard, AuraCard, SpellCard, SimpleSpellCard, SplitSpellCard } from "./card.js";
 import { SimpleActivatedAbility, FirstStrikeAbility, VigilanceAbility, TrampleAbility, DoubleStrikeAbility } from "./ability.js";
 import { MultipleEffect, AddManaEffect, CreateTokenEffect, AddCounterEffect, ApplyAbilityEffect, SetStatsEffect, SetTypesEffect, DelayedEffect, MoveCardsEffect, QueueCardsEffect } from "./effect.js";
 import { SacrificeSelfCost, TapCost } from "./cost.js";
@@ -49,7 +49,7 @@ export class ForcedAdaptationCard extends AuraCard {
     }
     makeEquivalentCopy = () => new ForcedAdaptationCard();
 }
-// Random legendary creatures.
+// Random legendary creatures (probably don't need to export these)
 class KarnLegacyReforgedCard extends CreatureCard {
     constructor() {
         super("Karn, Legacy Reforged", ["Creature", "Artifact", "Legendary", "Golem"], `{CARDNAME}'s power and toughness are each equal to the greatest mana value among artifacts you control.
@@ -67,7 +67,7 @@ class KarnLegacyReforgedCard extends CreatureCard {
     makeEquivalentCopy = () => new KarnLegacyReforgedCard();
 }
 // The boros rokiric deck
-class FigureOfDestinyCard extends CreatureCard {
+export class FigureOfDestinyCard extends CreatureCard {
     constructor() {
         super("Figure of Destiny", ["Creature", "Kithkin"], `{R/W}: {CARDNAME} becomes a 2/2 Kithkin Spirit.
         3 x {R/W} If {CARDNAME} is a Spirit, it becomes a 4/4 Kithkin Spirit Warrior.
@@ -89,7 +89,7 @@ class FigureOfDestinyCard extends CreatureCard {
     }
     makeEquivalentCopy = () => new FigureOfDestinyCard();
 }
-class GeneralFerrousRokiricCard extends CreatureCard {
+export class GeneralFerrousRokiricCard extends CreatureCard {
     constructor() {
         super("General Ferrous Rokiric", ["Creature", "Legendary", "Human", "Soldier"], "Protection from monocolored. Whenever you cast a multicolored spell, create a 4/4 red and white Golem token.", 3, 1, new ManaCost({ red: 1, white: 1, colorless: 1 }), [
             new ProtectionAbility(source => source.colors.length == 1),
@@ -103,7 +103,7 @@ class GeneralFerrousRokiricCard extends CreatureCard {
     }
     makeEquivalentCopy = () => new GeneralFerrousRokiricCard();
 }
-class AnaxAndCymedeCard extends CreatureCard {
+export class AnaxAndCymedeCard extends CreatureCard {
     constructor() {
         super("Anax and Cymede", ["Creature", "Legendary", "Human", "Soldier"], "First strike, vigilance. Heroic ~ Creatures you control get +1/+1 and gain trample until end of turn.", 3, 2, new ManaCost({ red: 1, white: 1, colorless: 1 }), [
             new FirstStrikeAbility(),
@@ -122,7 +122,7 @@ class AnaxAndCymedeCard extends CreatureCard {
         ]);
     }
 }
-class FeatherTheRedeemedCard extends CreatureCard {
+export class FeatherTheRedeemedCard extends CreatureCard {
     constructor() {
         super("Feather, the Redeemed", ["Creature", "Legendary", "Angel"], `Flying.
       Whenever you cast a spell that targets a creature you control,
@@ -138,7 +138,7 @@ class FeatherTheRedeemedCard extends CreatureCard {
         }));
     }
 }
-class IroasGodOfVictoryCard extends CreatureCard {
+export class IroasGodOfVictoryCard extends CreatureCard {
     constructor() {
         super("Iroas, God of Victory", ["Creature", "Enchantment", "Legendary", "God"], `Indestructible. As long as your devotion to red and white is less than seven, {CARDNAME} isn't a creature.
       Creatures you control have menace.
@@ -161,7 +161,7 @@ class IroasGodOfVictoryCard extends CreatureCard {
         ]);
     }
 }
-class RadiantScrollwielderCard extends CreatureCard {
+export class RadiantScrollwielderCard extends CreatureCard {
     constructor() {
         super("Radiant Scrollwielder", ["Creature", "Dwarf", "Cleric"], `Instant and sorcery spells you control have lifelink.
       At the beginning of your upkeep, exile a random instant or sorcery card from your graveyard.
@@ -197,7 +197,7 @@ class RadiantScrollwielderCard extends CreatureCard {
         ]);
     }
 }
-class ZadaHedronGrinderCard extends CreatureCard {
+export class ZadaHedronGrinderCard extends CreatureCard {
     constructor() {
         super("Zada, Hedron Grinder", ["Creature", "Legendary", "Goblin", "Ally"], `Whenever you cast an instant or sorcery spell that targets only {CARDNAME},
       copy that spell for each other creature you control that the spell could target.
@@ -213,7 +213,7 @@ class ZadaHedronGrinderCard extends CreatureCard {
         }));
     }
 }
-class FloweringOfTheWhiteTreeCard extends PermanentCard {
+export class FloweringOfTheWhiteTreeCard extends PermanentCard {
     constructor() {
         super("Flowering of the White Tree", ["Legendary", "Enchantment"], `Legendary creatures you control get +2/+1 and have ward {1}.
       Nonlegendary creatures you control get +1/+1.`, new ManaCost({ white: 2 }), [
@@ -272,6 +272,28 @@ export class BorosCharmCard extends SpellCard {
 export class LightningHelixCard extends SimpleSpellCard {
     constructor() {
         super("Lightning Helix", ["Instant"], "{CARDNAME} deals 3 damage to any target and you gain 3 life.", (self, target) => { target.takeDamage(self, 3); self.controller.gainLife(self, 3); }, new ManaCost({ red: 1, white: 1 }));
+    }
+}
+// No need to export the halves
+class IntegrityCard extends SimpleSpellCard {
+    constructor() {
+        super("Integrity", ["Instant"], "Target creature gets +2/+2 until end of turn.", (self, target) => {
+            new ApplyAbilityEffect(new StatsHook((me, orig, that, stat) => {
+                if (!me.is(that))
+                    return orig(that, stat);
+                return orig(that, stat) + 2;
+            })).resolve(target);
+        }, new ManaCost({ choices: [[{ red: 1 }, { white: 1 }]] }));
+    }
+}
+export class InterventionCard extends SimpleSpellCard {
+    constructor() {
+        super("Intervention", ["Instant"], "{CARDNAME} deals 3 damage to any target and you gain 3 life.", (self, target) => { target.takeDamage(self, 3); self.controller.gainLife(self, 3); }, new ManaCost({ red: 1, white: 1 }));
+    }
+}
+export class IntegrityInterventionCard extends SplitSpellCard {
+    constructor() {
+        super(new IntegrityCard(), new InterventionCard());
     }
 }
 // TODO: rest of deck
