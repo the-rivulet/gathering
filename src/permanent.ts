@@ -1,7 +1,7 @@
-import type { ManaCost } from "./mana.js";
+import { ManaCost } from "./mana.js";
 import type { Player } from "./player.js";
 import { Card, PermanentCard, CreatureCard, PlaneswalkerCard, TypeList } from "./card.js";
-import { Ability, ComputedAbility, FirstStrikeAbility, DoubleStrikeAbility } from "./ability.js";
+import { Ability, ComputedAbility, FirstStrikeAbility, DoubleStrikeAbility, HasteAbility } from "./ability.js";
 import { Battlefield } from "./globals.js";
 import { ApplyHooks, DestroyPermanentHook, StatsHook, TypesHook, AbilitiesHook, TakeDamageHook } from "./hook.js";
 import { Zone } from "./zone.js";
@@ -27,7 +27,7 @@ export class Permanent {
     this.name = card.name;
     this.baseTypes = card.types;
     this.text = card.text;
-    if (card.manaCost) this.manaCost = card.manaCost;
+    this.manaCost = new ManaCost(card.manaCost?.mana);
     this.baseAbilities = card.abilities;
     if (!card.owner) throw new Error("Tried to create a permanent without specifying an owner!");
     this.controller = card.owner;
@@ -62,7 +62,6 @@ export class Permanent {
     Battlefield.splice(Battlefield.indexOf(this), 1);
   }
   get controller() {
-    // What is this doing here?
     return this.controller_REAL;
   }
   set controller(value: Player) {
@@ -86,12 +85,8 @@ export class Permanent {
   }
   get abilities(): Ability[] {
     return ApplyHooks(AbilitiesHook, that => {
-      let a = [
-        ...that.tempAbilities,
-        ...that.eternalAbilities,
-        ...that.baseAbilities,
-      ];
-      return a.map(x => x instanceof ComputedAbility ? x.evaluate(that) : x).flat();
+      let a = [...that.tempAbilities, ...that.eternalAbilities, ...that.baseAbilities];
+      return a.map(x => x instanceof ComputedAbility ? x.evaluate(that) : x).flat(2);
     }, this);
   }
   set types(t: TypeList | string[]) {
@@ -116,6 +111,7 @@ export class Creature extends Permanent {
     super(card);
     this.staticPower = card.power;
     this.staticToughness = card.toughness;
+    if (this.hasAbility(HasteAbility)) this.summoningSickness = false;
   }
   get basePower() {
     return typeof this.staticPower == "number"

@@ -1,4 +1,4 @@
-import { Creature } from "./permanent.js";
+import { Permanent, Creature } from "./permanent.js";
 import { Step } from "./turn.js";
 import { Battlefield, TurnManager } from "./globals.js";
 import { Ability, ComputedAbility, ReachAbility } from "./ability.js";
@@ -8,7 +8,7 @@ import { Ability, ComputedAbility, ReachAbility } from "./ability.js";
 */
 export function ApplyHooks(hook, orig, that, ...args) {
     for (let c of Battlefield) {
-        for (let a of c.abilities) {
+        for (let a of (hook instanceof AbilitiesHook ? c.abilities : [...c.tempAbilities, ...c.eternalAbilities, ...c.baseAbilities].map(x => x instanceof ComputedAbility ? x.evaluate(c) : x).flat())) {
             if (a instanceof hook) {
                 orig = a.apply(c, orig);
             }
@@ -63,10 +63,10 @@ export class ProtectionAbility extends ComputedAbility {
     constructor(applicable) {
         super(card => [
             new HasValidTargetsHook((me, orig, that, field) => {
-                return orig(that, field.filter(x => x != card || !applicable(that || that.card)));
+                return orig(that, field.filter(x => !x.is(me) || !applicable(that || that.card)));
             }),
             new CheckTargetsHook((me, orig, that, field) => {
-                return orig(that, field.filter(x => x != card || !applicable(that || that.card)));
+                return orig(that, field.filter(x => !x.is(me) || !applicable(that || that.card)));
             })
         ]);
     }
@@ -136,22 +136,47 @@ export class TakeDamageHook extends Hook {
         super(apply);
     }
 }
+export class LifelinkAbility extends TakeDamageHook {
+    constructor() {
+        super((me, orig, that, source, amount, combat, destroy) => {
+            orig(that, source, amount, combat, destroy);
+            if (that instanceof Permanent && that.is(me))
+                that.controller.gainLife(that, amount);
+        });
+    }
+}
 export class CardClickHook extends Hook {
     constructor(apply) {
         super(apply);
     }
 }
-export class WardAbility extends CardClickHook {
+export class SubmitSelectionHook extends Hook {
+    constructor(apply) {
+        super(apply);
+    }
+}
+export class WardAbility extends ComputedAbility {
     cost;
     constructor(cost) {
-        super((me, orig, that) => {
-            if (!TurnManager.ongoingSelection || !that.is(me.representedCard))
-                return orig(that);
-            if (!cost.payPlayer(TurnManager.selectingPlayer, false))
-                return;
-            cost.payPlayer(TurnManager.selectingPlayer, true);
-            orig(that);
-        });
+        super(card => [
+            new CardClickHook((me, orig, that) => {
+                if (!that.is(me.representedCard) || !TurnManager.ongoingSelection || !that.is(me.representedCard))
+                    return orig(that);
+                if (!cost.payPlayer(TurnManager.selectingPlayer, false))
+                    return;
+                orig(that);
+            }),
+            new SubmitSelectionHook((me, orig, that, selection) => {
+                if (selection.filter(x => x.item instanceof Permanent && x.item.is(me)).length)
+                    cost.payPlayer(that, true);
+                orig(that, selection);
+            })
+        ]);
         this.cost = cost;
+    }
+}
+export class FinishedResolvingSpellHook extends Hook {
+    constructor(apply) {
+        super(apply);
     }
 }

@@ -17,14 +17,14 @@ class MultipleCost extends Cost {
   constructor(costs: Cost[]) { super(); this.costs = costs; }
   pay(card: Permanent, spend = true) {
     let payment = this.costs.map(x => x.pay(card, false));
-    if (payment.filter(x => !x).length > 0) return false;
+    if (payment.filter(x => !x).length) return false;
     if (!spend) return true;
     for (let i of this.costs) i.pay(card, true);
     return true;
   }
   payPlayer(player: Player, spend = true) {
     let payment = this.costs.map(x => x.payPlayer(player, false));
-    if (payment.filter(x => !x).length > 0) return false;
+    if (payment.filter(x => !x).length) return false;
     if (!spend) return true;
     for (let i of this.costs) i.payPlayer(player, true);
     return true;

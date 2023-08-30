@@ -133,7 +133,6 @@ export class TurnManagerClass {
             this.beginStep();
         }
         else {
-            // Remove damage
             for (let i of Battlefield.filter(x => x instanceof Creature)) {
                 i.removeDamage();
             }
@@ -144,11 +143,8 @@ export class TurnManagerClass {
             for (let i of Battlefield.filter(x => x instanceof Creature)) {
                 i.attacking = undefined;
             }
-            this.currentPlayer =
-                this.playerList[this.playerList.indexOf(this.currentPlayer) + 1 ==
-                    this.playerList.length
-                    ? 0
-                    : this.playerList.indexOf(this.currentPlayer) + 1];
+            this.currentPlayer = this.playerList[this.playerList.indexOf(this.currentPlayer) + 1 == this.playerList.length ? 0 : this.playerList.indexOf(this.currentPlayer) + 1];
+            this.currentPlayer.landPlays = 1;
             // Set step to untap step
             this.stepIndex = 0;
             this.step = this.stepList[0];

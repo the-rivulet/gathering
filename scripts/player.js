@@ -1,4 +1,4 @@
-import { PermanentCard, CreatureCard, AuraCard, SpellCard, SplitSpellCard } from "./card.js";
+import { PermanentCard, CreatureCard, AuraCard, SpellCard } from "./card.js";
 import { ManaPool, Color } from "./mana.js";
 import { Creature, Permanent } from "./permanent.js";
 import { Battlefield, TurnManager, StackManager } from "./globals.js";
@@ -46,11 +46,20 @@ export class Player {
     ringBearer;
     selectionData;
     choosing = false;
-    constructor(name, deck, life = 20) {
+    constructor(name, deck, life = 20, shuffleDeck = true) {
         this.name = name;
         this.deck = deck;
         for (let i of deck) {
             this.createNewCard(i, Zone.library);
+        }
+        // Shuffle
+        if (shuffleDeck) {
+            let arr = this.zones.library, ci = arr.length, ri;
+            while (ci != 0) {
+                ri = Math.floor(Math.random() * ci);
+                ci--;
+                [arr[ci], arr[ri]] = [arr[ri], arr[ci]];
+            }
         }
         this.startingLifeTotal = life;
         this.lifeTotal = life;
@@ -65,7 +74,7 @@ export class Player {
         card.owner = this;
         return card;
     }
-    moveCardTo(card, to) {
+    moveCardTo(card, to, render = true) {
         if (card.zone == to)
             return false;
         if (card.owner != this)
@@ -86,7 +95,8 @@ export class Player {
             }
         }
         // Update the UI to reflect the change
-        UI.renderBattlefield();
+        if (render)
+            UI.renderBattlefield();
         return true;
     }
     get uiElement() {
@@ -134,10 +144,8 @@ export class Player {
         UI.renderStack();
         return true;
     }
-    async castSpell(card, forceTargets, free = false, auto = false) {
-        if (!card.castable(this, auto, free))
-            return false;
-        if (!card.possible(card, Battlefield))
+    castSpell(card, forceTargets, free = false, auto = false) {
+        if (!card.castable(this, auto, free) || !card.possible(card, Battlefield))
             return false;
         let doIt = (targets) => {
             if (!card.validate(card, targets)) {
@@ -146,12 +154,13 @@ export class Player {
             }
             card.controller = this;
             StackManager.add({ card: card, targets: targets });
+            this.moveCardTo(card, Zone.stack);
             UI.renderStack();
             return true;
         };
-        if (!free && !(card instanceof SplitSpellCard))
+        if (!free)
             this.manaPool.pay(card, this);
-        this.moveCardTo(card, Zone.stack);
+        this.moveCardTo(card, (card.partOf ? Zone.limbo : Zone.stack));
         if (forceTargets)
             return doIt(forceTargets);
         else {
@@ -159,7 +168,7 @@ export class Player {
             return true;
         }
     }
-    async castAura(card, forceTarget, free = false, auto = false) {
+    castAura(card, forceTarget, free = false, auto = false) {
         if (!card.castable(this, auto, free) || !card.possible(card, Battlefield))
             return false;
         let doIt = (target) => {
@@ -168,6 +177,7 @@ export class Player {
                 return false;
             }
             StackManager.add({ card: card, targets: [target] });
+            this.moveCardTo(card, Zone.stack);
             UI.renderStack();
             return true;
         };
@@ -178,6 +188,32 @@ export class Player {
             return doIt(forceTarget);
         else {
             this.selectSingleTarget(card, t => card.validate(card, t), () => card.possible(card, Battlefield), "Select the aura's targets", doIt);
+            return true;
+        }
+    }
+    castSplitSpell(card, forceModes, free = false, auto = false) {
+        if (!card.castable(this, auto, free))
+            return false;
+        let fm = (typeof forceModes == "number" ? [forceModes] : forceModes);
+        let wm = card.parts.filter(x => x.castable(this, auto, free) && x.possible(x, Battlefield));
+        if (fm && fm.filter(x => !wm.includes(card.parts[x])).length)
+            return false;
+        let doIt = (modes) => {
+            let cards = modes.map(x => card.parts[x]);
+            if (cards.filter(x => !x.castable(this, auto, free) || !x.possible(x, Battlefield)).length)
+                return false;
+            this.moveCardTo(card, Zone.limbo);
+            for (let i of cards) {
+                this.createNewCard(i);
+                this.play(i);
+            }
+            this.moveCardTo(card, Zone.stack);
+            return true;
+        };
+        if (fm)
+            return doIt(fm);
+        else {
+            this.chooseOptions(card.parts.map(x => x.name), (card.fuse ? x => x >= 1 : 1), "Choose a part to cast", doIt);
             return true;
         }
     }
@@ -215,7 +251,13 @@ export class Player {
             }
             else if (card instanceof SpellCard) {
                 card.resolve(card, targets);
-                that.moveCardTo(card, Zone.graveyard);
+                let zwf = card.zoneWhenFinished(that, targets);
+                if (card.partOf) {
+                    that.moveCardTo(card.partOf, zwf);
+                    card.destroy();
+                }
+                else
+                    that.moveCardTo(card, zwf);
             }
         }, this, card, targets);
     }
@@ -261,11 +303,14 @@ export class Player {
         }, this, source, amount, combat, false);
     }
     drawCard(amount = 1) {
+        if (!amount)
+            return true;
         for (let i = 0; i < amount; i++) {
             if (!this.zones.library.length)
                 return false;
-            this.moveCardTo(this.zones.library[0], Zone.hand);
+            this.moveCardTo(this.zones.library[0], Zone.hand, false);
         }
+        UI.renderBattlefield();
         return true;
     }
     getConfirmation(message, continuation) {
@@ -274,7 +319,7 @@ export class Player {
     getColor(message, continuation) {
         UI.chooseOptions(this, Object.keys(Color).map(x => new ManaPool({ [x]: 1 }).asHTML + " " + x), 1, message, result => continuation(Color[result[0]]));
     }
-    chooseOptions(descriptions, howMany = 1, message, continuation) {
+    chooseOptions(descriptions, howMany, message, continuation) {
         UI.chooseOptions(this, descriptions, howMany, message, continuation);
     }
     /**

@@ -77,3 +77,4 @@ export class FirstStrikeAbility extends EmptyAbility { constructor() { super(); 
 export class DoubleStrikeAbility extends EmptyAbility { constructor() { super(); } }
 export class VigilanceAbility extends EmptyAbility { constructor() { super(); } }
 export class TrampleAbility extends EmptyAbility { constructor() { super(); } }
+export class HasteAbility extends EmptyAbility { constructor() { super(); } }

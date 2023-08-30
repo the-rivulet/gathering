@@ -74,3 +74,6 @@ export class VigilanceAbility extends EmptyAbility {
 export class TrampleAbility extends EmptyAbility {
     constructor() { super(); }
 }
+export class HasteAbility extends EmptyAbility {
+    constructor() { super(); }
+}

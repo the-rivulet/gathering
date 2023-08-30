@@ -1,14 +1,23 @@
-import { TypeList, PermanentCard, CreatureCard, AuraCard, SpellCard, SimpleSpellCard, SplitSpellCard } from "./card.js";
-import { SimpleActivatedAbility, TargetedActivatedAbility, FirstStrikeAbility, VigilanceAbility, TrampleAbility, DoubleStrikeAbility } from "./ability.js";
+import { TypeList, PermanentCard, CreatureCard, AuraCard, SpellCard, SimpleSpellCard, SplitSpellCard, UntargetedSpellCard } from "./card.js";
+import { SimpleActivatedAbility, TargetedActivatedAbility, FirstStrikeAbility, VigilanceAbility, TrampleAbility, DoubleStrikeAbility, HasteAbility } from "./ability.js";
 import { MultipleEffect, AddManaEffect, CreateTokenEffect, AddCounterEffect, ApplyAbilityEffect, SetStatsEffect, SetTypesEffect, DelayedEffect, MoveCardsEffect, QueueCardsEffect } from "./effect.js";
 import { SacrificeSelfCost, TapCost } from "./cost.js";
 import { ManaCost, ManaPool, Color } from "./mana.js";
-import { PlayCardHook, BeginStepHook, StatsHook, ProtectionAbility, FlyingAbility, HeroicAbility, ResolveCardHook, IndestructibleAbility, TypesHook, AbilitiesHook, MenaceAbility, TakeDamageHook, CardClickHook, SelectTargetsHook, WardAbility } from "./hook.js";
-import { Creature, Planeswalker } from "./permanent.js";
+import { PlayCardHook, BeginStepHook, StatsHook, ProtectionAbility, FlyingAbility, HeroicAbility, ResolveCardHook, IndestructibleAbility, TypesHook, AbilitiesHook, MenaceAbility, TakeDamageHook, CardClickHook, SelectTargetsHook, WardAbility, FinishedResolvingSpellHook, LifelinkAbility } from "./hook.js";
+import { Creature, Planeswalker, Permanent } from "./permanent.js";
 import { Player } from "./player.js";
 import { Battlefield, TurnManager } from "./globals.js";
 import { Step } from "./turn.js";
 import { Zone } from "./zone.js";
+
+/**
+ * Make sure you specify the right types here, no type checking on the parameter!
+ */
+let typePredicate = function <T>(validate: (x) => boolean) {
+  return function (x): x is T {
+    return validate(x);
+  };
+};
 
 class TreasureTokenCard extends PermanentCard {
   constructor() {
@@ -27,14 +36,16 @@ class TreasureTokenCard extends PermanentCard {
 }
 
 export class BasicLandCard extends PermanentCard {
+  color: Color;
   constructor(name: string, color: Color) {
     super(
       name,
       ["Basic", "Land", name],
-      "{A1}{T}{EC1}Add {" + Color[color] + "}.{EA1}",
+      "{A1}{T}{EC1}Add {" + (color == Color.blue ? "U" : color[0].toUpperCase()) + "}.{EA1}",
       undefined,
       new SimpleActivatedAbility(new TapCost(), card => new AddManaEffect({ [color]: 1 }).resolve(card))
     );
+    this.color = color;
   }
 }
 
@@ -59,6 +70,7 @@ export class GiantGrowthCard extends SimpleSpellCard<Creature> {
       "Giant Growth",
       ["Instant"],
       "Target creature gets +3/+3 until end of turn.",
+      typePredicate(x => x instanceof Creature),
       (self, target) => {
         new ApplyAbilityEffect(new StatsHook((me, orig, that, stat) => {
           if (!me.is(that)) return orig(that, stat);
@@ -132,9 +144,9 @@ export class FigureOfDestinyCard extends CreatureCard {
     super(
       "Figure of Destiny",
       ["Creature", "Kithkin"],
-      `{R/W}: {CARDNAME} becomes a 2/2 Kithkin Spirit.
-        3 x {R/W} If {CARDNAME} is a Spirit, it becomes a 4/4 Kithkin Spirit Warrior.
-        6 x {R/W}: If {CARDNAME} is a Warrior, it becomes a 8/8 Kithkin Spirit Warrior Avatar with flying and first strike.`,
+      `{A1}({R}/{W}){EC1}{CARDNAME} becomes a 2/2 Kithkin Spirit.{EA1}<br/>
+        {A2}3 x ({R}/{W}){EC2}If {CARDNAME} is a Spirit, it becomes a 4/4 Kithkin Spirit Warrior.{EA2}<br/>
+        {A3}6 x ({R}/{W}){EC3}If {CARDNAME} is a Warrior, it becomes a 8/8 Kithkin Spirit Warrior Avatar with flying and first strike.{EA3}`,
       1, 1,
       new ManaCost({ choices: [[{ red: 1 }, { white: 1 }]] }),
       [
@@ -173,7 +185,7 @@ export class GeneralFerrousRokiricCard extends CreatureCard {
       ["Creature", "Legendary", "Human", "Soldier"],
       "Protection from monocolored. Whenever you cast a multicolored spell, create a 4/4 red and white Golem token.",
       3, 1,
-      new ManaCost({ red: 1, white: 1, colorless: 1 }),
+      new ManaCost({ red: 1, white: 1, generic: 1 }),
       [
         new ProtectionAbility(source => source.colors.length == 1),
         new PlayCardHook((me, orig, that, card, free, noCheck, force) => {
@@ -193,9 +205,11 @@ export class AnaxAndCymedeCard extends CreatureCard {
     super(
       "Anax and Cymede",
       ["Creature", "Legendary", "Human", "Soldier"],
-      "First strike, vigilance. Heroic ~ Creatures you control get +1/+1 and gain trample until end of turn.",
+      `First strike, vigilance.<br/>
+      Whenever you cast a spell that targets {CARDNAME},<br/>
+      creatures you control get +1/+1 and gain trample until end of turn.`,
       3, 2,
-      new ManaCost({ red: 1, white: 1, colorless: 1 }),
+      new ManaCost({ red: 1, white: 1, generic: 1 }),
       [
         new FirstStrikeAbility(),
         new VigilanceAbility(),
@@ -215,6 +229,7 @@ export class AnaxAndCymedeCard extends CreatureCard {
       ]
     );
   }
+  makeEquivalentCopy = () => new AnaxAndCymedeCard();
 }
 
 export class FeatherTheRedeemedCard extends CreatureCard {
@@ -223,20 +238,20 @@ export class FeatherTheRedeemedCard extends CreatureCard {
       "Feather, the Redeemed",
       ["Creature", "Legendary", "Angel"],
       `Flying.
-      Whenever you cast a spell that targets a creature you control,
-      exile that card instead of putting it into your graveyard as it resolves.
+      Whenever you cast a spell that targets a creature you control,<br/>
+      exile that card instead of putting it into your graveyard as it resolves.<br/>
       If you do, return it to your hand at the beginning of the next end step.`,
       3, 4,
       new ManaCost({ red: 1, white: 2 }),
-      new ResolveCardHook((me, orig, that, card, targets) => {
-        if (card instanceof SpellCard && that.is(card.controller) && targets.filter(x => x instanceof Creature && x.controller.is(me.controller)).length) {
-          card.resolve(card, targets);
-          that.moveCardTo(card, Zone.exile);
+      new FinishedResolvingSpellHook((me, orig, card, player, targets) => {
+        if (player.is(card.controller) && targets.filter(x => x instanceof Creature && x.controller.is(me.controller)).length) {
           new DelayedEffect(new MoveCardsEffect(Zone.hand, card), Step.end).queue(me);
-        } else orig(that, card, targets);
+          return Zone.exile;
+        } else orig(card, player, targets);
       })
     );
   }
+  makeEquivalentCopy = () => new FeatherTheRedeemedCard();
 }
 
 export class IroasGodOfVictoryCard extends CreatureCard {
@@ -244,8 +259,8 @@ export class IroasGodOfVictoryCard extends CreatureCard {
     super(
       "Iroas, God of Victory",
       ["Creature", "Enchantment", "Legendary", "God"],
-      `Indestructible. As long as your devotion to red and white is less than seven, {CARDNAME} isn't a creature.
-      Creatures you control have menace.
+      `Indestructible. As long as your devotion to red and white is less than seven, {CARDNAME} isn't a creature.<br/>
+      Creatures you control have menace.<br/>
       Prevent all damage that would be dealt to attacking creatures you control.`,
       7, 4,
       new ManaCost({ red: 1, white: 1, generic: 2 }),
@@ -265,6 +280,7 @@ export class IroasGodOfVictoryCard extends CreatureCard {
       ]
     );
   }
+  makeEquivalentCopy = () => new IroasGodOfVictoryCard();
 }
 
 export class RadiantScrollwielderCard extends CreatureCard {
@@ -272,9 +288,9 @@ export class RadiantScrollwielderCard extends CreatureCard {
     super(
       "Radiant Scrollwielder",
       ["Creature", "Dwarf", "Cleric"],
-      `Instant and sorcery spells you control have lifelink.
-      At the beginning of your upkeep, exile a random instant or sorcery card from your graveyard.
-      You may cast it this turn.
+      `Instant and sorcery spells you control have lifelink.<br/>
+      At the beginning of your upkeep, exile a random instant or sorcery card from your graveyard.<br/>
+      You may cast it this turn.<br/>
       If a spell cast this way would be put into your graveyard, exile it instead.`,
       2, 4,
       new ManaCost({ red: 1, white: 1, generic: 2 }),
@@ -291,11 +307,9 @@ export class RadiantScrollwielderCard extends CreatureCard {
             let spell = spells[Math.floor(Math.random() * spells.length)];
             new ApplyAbilityEffect(new CardClickHook((me2, orig2, that2) => {
               if (!that2.is(spell) || TurnManager.ongoingSelection) return orig2(that2);
-              new ApplyAbilityEffect(new ResolveCardHook((me3, orig3, that3, card, targets) => {
-                if (card.is(spell) && card instanceof SpellCard) {
-                  card.resolve(card, targets);
-                  that3.moveCardTo(card, Zone.exile);
-                } else orig3(that3, card, targets);
+              new ApplyAbilityEffect(new FinishedResolvingSpellHook((me3, orig3, that3, player, targets) => {
+                if (!that3.is(spell)) return orig3(that3, player, targets);
+                return Zone.exile;
               })).resolve(me2);
               that2.play();
             })).queue(me);
@@ -304,6 +318,7 @@ export class RadiantScrollwielderCard extends CreatureCard {
       ]
     );
   }
+  makeEquivalentCopy = () => new RadiantScrollwielderCard();
 }
 
 export class ZadaHedronGrinderCard extends CreatureCard {
@@ -311,8 +326,8 @@ export class ZadaHedronGrinderCard extends CreatureCard {
     super(
       "Zada, Hedron Grinder",
       ["Creature", "Legendary", "Goblin", "Ally"],
-      `Whenever you cast an instant or sorcery spell that targets only {CARDNAME},
-      copy that spell for each other creature you control that the spell could target.
+      `Whenever you cast an instant or sorcery spell that targets only {CARDNAME},<br/>
+      copy that spell for each other creature you control that the spell could target.<br/>
       Each copy targets a different one of those creatures.`,
       3, 3,
       new ManaCost({ red: 1, generic: 3 }),
@@ -328,6 +343,7 @@ export class ZadaHedronGrinderCard extends CreatureCard {
       })
     );
   }
+  makeEquivalentCopy = () => new ZadaHedronGrinderCard();
 }
 
 export class FloweringOfTheWhiteTreeCard extends PermanentCard {
@@ -335,7 +351,7 @@ export class FloweringOfTheWhiteTreeCard extends PermanentCard {
     super(
       "Flowering of the White Tree",
       ["Legendary", "Enchantment"],
-      `Legendary creatures you control get +2/+1 and have ward {1}.
+      `Legendary creatures you control get +2/+1 and have ward {1}.<br/>
       Nonlegendary creatures you control get +1/+1.`,
       new ManaCost({ white: 2 }),
       [
@@ -349,6 +365,7 @@ export class FloweringOfTheWhiteTreeCard extends PermanentCard {
       ]
     );
   }
+  makeEquivalentCopy = () => new FloweringOfTheWhiteTreeCard();
 }
 
 export class LightningBoltCard extends SimpleSpellCard<Creature | Player | Planeswalker> {
@@ -357,10 +374,12 @@ export class LightningBoltCard extends SimpleSpellCard<Creature | Player | Plane
       "Lightning Bolt",
       ["Instant"],
       "{CARDNAME} deals 3 damage to any target.",
+      typePredicate(x => x instanceof Creature || x instanceof Player || x instanceof Planeswalker),
       (self, target) => { target.takeDamage(self, 3); },
       new ManaCost({ red: 1 })
     );
   }
+  makeEquivalentCopy = () => new LightningBoltCard();
 }
 
 export class RecklessRageCard extends SpellCard {
@@ -370,13 +389,15 @@ export class RecklessRageCard extends SpellCard {
       ["Instant"],
       "{CARDNAME} deals 4 damage to target creature you don't control and 2 damage to target creature you control.",
       (self, targets) => targets.length == 2 && targets[0] instanceof Creature && !targets[0].controller.is(self.controller) && targets[1] instanceof Creature && targets[1].controller.is(self.controller),
-      (self, field) => field.filter(x => x instanceof Creature && !x.controller.is(self.controller)).length > 0 && field.filter(x => x instanceof Creature && x.controller.is(self.controller)).length > 0,
+      (self, field) => field.filter(x => x instanceof Creature && !x.controller.is(self.owner)).length > 0 && field.filter(x => x instanceof Creature && x.controller.is(self.owner)).length > 0,
       (self, targets) => {
         targets[0].takeDamage(self, 4);
         targets[1].takeDamage(self, 2);
-      }
+      },
+      new ManaCost({ red: 1 })
     );
   }
+  makeEquivalentCopy = () => new RecklessRageCard();
 }
 
 export class BorosCharmCard extends SpellCard {
@@ -384,9 +405,9 @@ export class BorosCharmCard extends SpellCard {
     super(
       "Boros Charm",
       ["Instant"],
-      `Choose one:
-      * 4 damage to target player or planeswalker.
-      * Permanents you control gain indestructible until end of turn.
+      `Choose one:<br/>
+      * 4 damage to target player or planeswalker.<br/>
+      * Permanents you control gain indestructible until end of turn.<br/>
       * Target creature gains double strike until end of turn.`,
       (self, targets) => targets.length == 0,
       (self, field) => true,
@@ -408,9 +429,11 @@ export class BorosCharmCard extends SpellCard {
             });
           }
         });
-      }
+      },
+      new ManaCost({ red: 1, white: 1 })
     );
   }
+  makeEquivalentCopy = () => new BorosCharmCard();
 }
 
 export class LightningHelixCard extends SimpleSpellCard<Creature | Player | Planeswalker> {
@@ -419,10 +442,12 @@ export class LightningHelixCard extends SimpleSpellCard<Creature | Player | Plan
       "Lightning Helix",
       ["Instant"],
       "{CARDNAME} deals 3 damage to any target and you gain 3 life.",
+      typePredicate(x => x instanceof Creature || x instanceof Player || x instanceof Planeswalker),
       (self, target) => { target.takeDamage(self, 3); self.controller.gainLife(self, 3); },
       new ManaCost({ red: 1, white: 1 })
     );
   }
+  makeEquivalentCopy = () => new LightningHelixCard();
 }
 
 // No need to export the halves
@@ -432,6 +457,7 @@ class IntegrityCard extends SimpleSpellCard<Creature> {
       "Integrity",
       ["Instant"],
       "Target creature gets +2/+2 until end of turn.",
+      typePredicate(x => x instanceof Creature),
       (self, target) => {
         new ApplyAbilityEffect(new StatsHook((me, orig, that, stat) => {
           if (!me.is(that)) return orig(that, stat);
@@ -441,24 +467,97 @@ class IntegrityCard extends SimpleSpellCard<Creature> {
       new ManaCost({ choices: [[{ red: 1 }, { white: 1 }]] })
     );
   }
+  makeEquivalentCopy = () => new IntegrityCard();
 }
 
-export class InterventionCard extends SimpleSpellCard<Creature | Player | Planeswalker> {
+class InterventionCard extends SimpleSpellCard<Creature | Player | Planeswalker> {
   constructor() {
     super(
       "Intervention",
       ["Instant"],
       "{CARDNAME} deals 3 damage to any target and you gain 3 life.",
+      typePredicate(x => x instanceof Creature || x instanceof Player || x instanceof Planeswalker),
       (self, target) => { target.takeDamage(self, 3); self.controller.gainLife(self, 3); },
-      new ManaCost({ red: 1, white: 1 })
+      new ManaCost({ red: 1, white: 1, generic: 2 })
     );
   }
+  makeEquivalentCopy = () => new InterventionCard();
 }
 
 export class IntegrityInterventionCard extends SplitSpellCard {
   constructor() {
-    super(new IntegrityCard(), new InterventionCard());
+    super(false, new IntegrityCard(), new InterventionCard());
   }
+}
+
+export class RipApartCard extends SpellCard {
+  constructor() {
+    super(
+      "Rip Apart",
+      ["Sorcery"],
+      `Choose one:<br/>
+      * 3 damage to target creature or planeswalker.<br/>
+      * Destroy target artifact or enchantment`,
+      (self, targets) => targets.length == 1 && targets[0] instanceof Creature || targets[0] instanceof Planeswalker || (targets[0] instanceof Permanent && (targets[0].hasType("Artifact") || targets[0].hasType("Enchantment"))),
+      (self, field) => field.filter(x => x instanceof Creature || x instanceof Planeswalker || x.hasType("Artifact") || x.hasType("Enchantment")).length > 0,
+      (self, targets) => {
+        let t = targets[0];
+        if (t instanceof Permanent && (t.hasType("Artifact") || t.hasType("Enchantment"))) t.destroy();
+        else if (t instanceof Creature || t instanceof Planeswalker) t.takeDamage(self, 3);
+      },
+      new ManaCost({ red: 1, white: 1 })
+    );
+  }
+  makeEquivalentCopy = () => new BorosCharmCard();
+}
+
+export class ThrillingDiscoveryCard extends UntargetedSpellCard {
+  constructor() {
+    super(
+      "Thrilling Discovery",
+      ["Sorcery"],
+      `You gain 2 life. Then you may discard 2 cards to draw 3 cards.`,
+      (self) => {
+        let c = self.controller;
+        c.gainLife(self, 2);
+        if (c.zones.hand.length >= 2) {
+          c.getConfirmation("Do you want to discard 2 cards to draw 3 cards?", result => {
+            if (!result) return;
+            c.selectTargets(undefined, t => t.length == 2 && t.filter(x => x.owner.is(c) && x.zone == Zone.hand).length == 2, () => c.zones.hand.length >= 2, "Select 2 cards to discard", result2 => {
+              for (let i of result2) {
+                c.moveCardTo(i, Zone.graveyard);
+              }
+              c.drawCard(3);
+            });
+          });
+        }
+      },
+      new ManaCost({ red: 1, white: 1 })
+    );
+  }
+  makeEquivalentCopy = () => new ThrillingDiscoveryCard();
+}
+
+export class AngelfireIgnitionCard extends SimpleSpellCard<Creature> {
+  constructor() {
+    super(
+      "Angelfire Ignition",
+      ["Sorcery"],
+      `Put two +1/+1 counters on target creature.<br/>
+      It gains vigilance, trample, lifelink, haste, and indestructible this turn.`,
+      typePredicate(x => x instanceof Creature),
+      (self, target) => {
+        target.addCounter("+1/+1", 2);
+        new ApplyAbilityEffect(new VigilanceAbility()).resolve(target);
+        new ApplyAbilityEffect(new TrampleAbility()).resolve(target);
+        new ApplyAbilityEffect(new LifelinkAbility()).resolve(target);
+        new ApplyAbilityEffect(new HasteAbility()).resolve(target);
+        new ApplyAbilityEffect(new IndestructibleAbility()).resolve(target);
+      },
+      new ManaCost({ white: 1, red: 1, generic: 1 })
+    );
+  }
+  makeEquivalentCopy = () => new AngelfireIgnitionCard();
 }
 
 // TODO: rest of deck

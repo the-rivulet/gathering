@@ -2,7 +2,7 @@ import { ManaCost } from "./mana.js";
 import { Zone } from "./zone.js";
 import { TurnManager } from "./globals.js";
 import { Step } from "./turn.js";
-import { ApplyHooks, HasValidTargetsHook, CheckTargetsHook } from "./hook.js";
+import { ApplyHooks, HasValidTargetsHook, CheckTargetsHook, FinishedResolvingSpellHook } from "./hook.js";
 import { UI } from "./ui.js";
 export class TypeList {
     list;
@@ -41,9 +41,9 @@ export class Card {
     }
     getTooltip(textAsHTML, pow = true) {
         let t = `
-    ${this.manaCost ? "(" + this.manaCost.asHTML() + ") " : ""}${this.name}<br/>
+    ${this.manaCost ? this.manaCost.asHTML() + " " : ""}${this.name}<br/>
       ${this.types.super.join(" ")} ${this.types.main.join(" ")}${this.types.sub.length ? " - " : ""}${this.types.sub.join(" ")}<br/>
-      ${textAsHTML(this.text.replaceAll("{CARDNAME", this.name))}`;
+      ${textAsHTML(this.text.replaceAll("{CARDNAME}", this.name))}`;
         if (this instanceof CreatureCard && pow) {
             t += `<br/>${this.power}/${this.toughness}`;
         }
@@ -52,14 +52,16 @@ export class Card {
     hasType(type) {
         return this.types.list.includes(type);
     }
-    hasAbilityMarker(a) {
+    hasAbilityMarker(ability) {
+        let a = ability + 1;
         return this.text.includes(`{A${a}}`) && this.text.includes(`{EC${a}}`) && this.text.includes(`{EA${a}}`);
     }
-    getAbilityInfo(a, what = "all") {
+    getAbilityInfo(ability, what = "all") {
+        let a = ability + 1;
         let begin = what == "effect" ? `{EC${a}}` : `{A${a}}`;
         let end = what == "cost" ? `{EC${a}}` : `{EA${a}}`;
         let t = what == "all" ? this.text.replace(`{EC${a}}`, ": ") : this.text;
-        return this.hasAbilityMarker(a) ? t.split(begin)[1].split(end)[0] : "";
+        return this.hasAbilityMarker(ability) ? t.split(begin)[1].split(end)[0].replaceAll("{CARDNAME}", this.name) : "";
     }
     get colors() {
         if (!this.manaCost)
@@ -113,6 +115,7 @@ export class SpellCard extends Card {
     baseValidate;
     basePossible;
     controller;
+    partOf;
     constructor(name, types, text, validate, possible, func, mana) {
         super(name, (types.includes("Instant") || types.includes("Sorcery")) ? types : ["Instant", ...types], text, mana);
         this.resolve = func;
@@ -129,30 +132,27 @@ export class SpellCard extends Card {
             return that.baseValidate(self, targets);
         }, self, targets);
     }
+    zoneWhenFinished(player, targets) {
+        return ApplyHooks(FinishedResolvingSpellHook, (that, player, targets) => {
+            return Zone.graveyard;
+        }, this, player, targets);
+    }
     makeEquivalentCopy;
 }
 export class SimpleSpellCard extends SpellCard {
-    constructor(name, types, text, func, mana) {
-        let targetType;
-        let possible = (self, field) => field.filter(x => x instanceof targetType).length > 0;
-        let validate = (self, target) => target.length == 1 && target[0] instanceof targetType;
+    constructor(name, types, text, instance, func, mana) {
+        let possible = (self, field) => [...field, ...TurnManager.playerList, ...TurnManager.playerList.map(x => Object.values(x.zones)).flat()].filter(x => instance(x)).length > 0;
+        let validate = (self, targets) => targets.length == 1 && instance(targets[0]);
         let func2 = (self, targets) => func(self, targets[0]);
         super(name, types, text, validate, possible, func2, mana);
     }
 }
-export class SplitSpellCard extends SpellCard {
-    parts;
-    constructor(...parts) {
-        if (parts.map(x => x.types).filter((x, i, a) => a.indexOf(x) == i).length > 1)
-            throw new Error("Tried to create split spell card with non-matching types!");
-        super(parts.map(x => x.name).join(" / "), parts[0].types.list, parts.map(x => x.getTooltip(UI.textAsHTML)).join("<br/><br/>"), (self, targets) => parts.map(x => x.validate(self, targets)).length > 0, (self, field) => parts.map(x => x.possible(self, field)).length > 0, (self, targets) => {
-            let castable = parts.filter(x => x.castable(self.controller));
-            self.controller.chooseOptions(castable.map(x => "Cast " + x.name), 1, "Choose one half to cast", choices => {
-                let c = castable[choices[0]];
-                self.controller.castSpell(c);
-            });
-        }, new ManaCost({ choices: parts.map(x => x.manaCost.mana.choices.flat()) })); // No idea if this will work but whatever
-        this.parts = parts;
+export class UntargetedSpellCard extends SpellCard {
+    constructor(name, types, text, func, mana) {
+        let possible = (self, field) => true;
+        let validate = (self, targets) => targets.length == 0;
+        let func2 = (self, targets) => func(self);
+        super(name, types, text, validate, possible, func2, mana);
     }
 }
 export class CreatureCard extends PermanentCard {
@@ -202,5 +202,22 @@ export class PlaneswalkerCard extends PermanentCard {
     constructor(name, type, text, loyalty, mana, ...abilities) {
         super(name, ["Legendary", "Planeswalker", type], text, mana, abilities);
         this.startingLoyalty = loyalty;
+    }
+}
+export class SplitSpellCard extends Card {
+    parts;
+    fuse;
+    constructor(fuse, ...parts) {
+        if (parts.map(x => x.types.list.join(" ")).filter((x, i, a) => a.indexOf(x) == i).length > 1)
+            throw new Error("Tried to create split spell card with non-matching types!");
+        super(parts.map(x => x.name).join(" // "), parts[0].types.list, parts.map(x => x.getTooltip(UI.textAsHTML)).join("<br/><br/>"), new ManaCost({ choices: parts.map(x => [x.manaCost.mana.required, ...x.manaCost.mana.choices.flat()]) }));
+        for (let i of parts) {
+            i.partOf = this;
+        }
+        this.parts = parts;
+        this.fuse = fuse;
+    }
+    castable(by, auto = false, free = false) {
+        return this.parts.filter(x => x.castable(by, auto, free)).length > 0;
     }
 }

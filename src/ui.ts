@@ -4,11 +4,19 @@ import { ManaPool, SimpleManaObject, ManaCost, ManaUtils } from "./mana.js";
 import { ActivatedAbility, SimpleActivatedAbility, TargetedActivatedAbility } from "./ability.js";
 import { Card, AuraCard, PermanentCard, SpellCard, CreatureCard } from "./card.js";
 import { TurnManager, Battlefield, StackManager, Settings } from "./globals.js";
-import { ApplyHooks, CardClickHook } from "./hook.js";
+import { ApplyHooks, CardClickHook, SubmitSelectionHook } from "./hook.js";
 import { Zone } from "./zone.js";
 import { Step } from "./turn.js";
 
 let getId = (x: string) => document.getElementById(x);
+
+let bgcolors = (card: Card) => card.colors.map(x => (
+  x == "white" ? "#aaa" :
+    x == "blue" ? "#7ff" :
+      x == "black" ? "#666" :
+        x == "red" ? "#f77" :
+          x == "green" ? "#7f7" : "#fff"
+));
 
 let textAsHTML = function (text: string) {
   let t = text
@@ -21,11 +29,11 @@ let textAsHTML = function (text: string) {
   // do I need these UUIDs?
   for (let i in colorList) {
     let uuid = Math.random().toString().slice(2);
-    t = t.replaceAll("{" + i + "}", "<img id='" + uuid + "' src='./assets/" + (Settings.slugcatMana ? "slugcats" : "mana") + "/" + (Settings.slugcatMana ? slugcatList[i] : colorList[i]) + ".png' class='" + (Settings.slugcatMana ? "slugcat" : "symbol") + "'>");
+    t = t.replaceAll("{" + i + "}", `<img id='${uuid}' src='./assets/${(Settings.slugcatMana ? "slugcats" : "mana")}/${(Settings.slugcatMana ? slugcatList[i] : colorList[i])}.png' class='${(Settings.slugcatMana ? "slugcat" : "symbol")}'>`);
   }
   for (let i = 0; i <= 15; i++) {
     let uuid = Math.random().toString().slice(2);
-    t = t.replaceAll("{" + i + "}", "<img id='" + uuid + "' " + i + "' src='./assets/mana/" + i + ".svg' class='symbol'>");
+    t = t.replaceAll("{" + i + "}", `<img id='${uuid}' src='./assets/mana/${i}.svg' class='symbol'>`);
   }
   return t;
 };
@@ -34,14 +42,15 @@ let mousex: number, mousey: number;
 function mouse(e?: any) {
   if (e) { mousex = e.clientX; mousey = e.clientY; }
   for (let i of document.getElementsByClassName("tx")) {
+    if (!i.checkVisibility()) continue;
     let hi = i as HTMLElement;
-    hi.style.top = Math.min(20 + mousey, window.innerHeight - hi.clientHeight) + "px";
-    hi.style.left = Math.min(20 + mousex, window.innerWidth - 20 - hi.clientWidth) + "px";
+    hi.style.top = Math.max(0, Math.min(20 + mousey, window.innerHeight - hi.clientHeight)) + "px";
+    hi.style.left = Math.max(0, Math.min(20 + mousex, window.innerWidth - 20 - hi.clientWidth)) + "px";
   }
 }
 document.onmousemove = e => mouse(e);
 function getHoveredUUID() {
-  let tip = Array.from(document.getElementsByClassName("tt")).filter(x => x instanceof HTMLElement && Array.from(x.children).filter(y => y.classList.contains("tx") && y.checkVisibility()).length > 0)[0] as HTMLElement;
+  let tip = Array.from(document.getElementsByClassName("tt")).filter(x => x instanceof HTMLElement && Array.from(x.children).filter(y => y.classList.contains("tx") && y.checkVisibility()).length)[0] as HTMLElement;
   if (!tip) return null;
   else return tip.getAttribute("card_uuid");
 }
@@ -54,15 +63,9 @@ function renderRow(cards: Card[], offset: number, valids: Card[] = []) {
     tt.innerHTML = card.name.slice(0);
     tt.classList.add("tt", "card");
     if (valids.includes(card)) tt.classList.add("valid");
-    tt.style.left = ((i - (0.5 * (cards.length - 1))) * 10 + 50) + "%";
+    tt.style.left = ((i - (0.5 * (cards.length - 1))) * (cards.length > 8 ? (80 / cards.length) : 10) + 50) + "%";
     tt.style.top = "calc(" + (50 + offset) + "% - 35px)";
-    let bgc = card.colors.map(x => (
-      x == "white" ? "silver" :
-        x == "blue" ? "cyan" :
-          x == "black" ? "#666" :
-            x == "red" ? "firebrick" :
-              x == "green" ? "lime" : "white"
-    ));
+    let bgc = bgcolors(card);
     let bg = bgc.length == 1 ? bgc[0] : bgc.length ? "linear-gradient(" + bgc.join(", ") + ")" : "white";
     tt.style.background = bg;
     let selected = card instanceof PermanentCard && selection.filter(x => x instanceof PermanentSelection && card instanceof PermanentCard && x.item == card.representedPermanent).length;
@@ -95,19 +98,23 @@ function renderRow(cards: Card[], offset: number, valids: Card[] = []) {
     } else if (card.castable(card.owner)) {
       if (card instanceof AuraCard && !card.possible(card, Battlefield)) {
         add("This aura has nothing to enchant.");
+        tt.classList.add("tapped");
       } else if (card instanceof SpellCard && !card.possible(card, Battlefield)) {
         add("This spell has no valid targets.");
+        tt.classList.add("tapped");
       } else {
-        add("Click to cast this card for " + card.manaCost.asHTML() + " (you have " + card.owner.manaPool.asHTML + ").");
+        add("Click to cast this card for " + card.manaCost.asHTML() + ".");
       }
     } else if (card.castable(card.owner, false, true)) {
-      add("You cannot pay " + card.manaCost.asHTML() + " right now (you have " + card.owner.manaPool.asHTML + ").");
+      add("You cannot pay " + card.manaCost.asHTML() + " right now.");
+      tt.classList.add("tapped");
     } else if (card.zone == Zone.hand) {
       add("This card is not playable right now.");
+      tt.classList.add("tapped");
     }
     tx.classList.add("tx");
     tt.appendChild(tx);
-    if (card.zone == "battlefield" && card instanceof PermanentCard && card.representedPermanent && !TurnManager.ongoingSelection) {
+    if (card.zone == Zone.battlefield && card instanceof PermanentCard && card.representedPermanent && !TurnManager.ongoingSelection) {
       let c = card.representedPermanent;
       if (c.tapped) tt.classList.add("tapped");
       else tt.classList.remove("tapped");
@@ -132,10 +139,12 @@ function renderRow(cards: Card[], offset: number, valids: Card[] = []) {
         let abils = c.abilities.filter(x => x instanceof ActivatedAbility) as ActivatedAbility[];
         let worked = false;
         for (let a of abils) {
+          let ind = abils.indexOf(a);
           if ((a instanceof SimpleActivatedAbility && a.cost.pay(c, false)) || (a instanceof TargetedActivatedAbility && a.possible(card.representedPermanent))) {
-            add((worked ? "P" : "Click or p") + "ress " + (abils.indexOf(a) + 1) + " to activate " + (card.hasAbilityMarker(1) ? ' " ' + textAsHTML(card.getAbilityInfo(1)) + ' "' : "this card's ability."));
+            add((worked ? "P" : "Click or p") + "ress " + (ind + 1) + " to activate " + (card.hasAbilityMarker(ind) ? ' "' + textAsHTML(card.getAbilityInfo(ind)) + '"' : "this card's #" + (ind + 1) + "ability."));
+            worked = true;
           } else {
-            add("You cannot pay " + (card.hasAbilityMarker(1) ? ('" ' + textAsHTML(card.getAbilityInfo(1, "cost") + ' " to activate " ' + card.getAbilityInfo(1, "effect") + ' "')) : "this ability's cost") + " right now.");
+            add("You cannot pay " + (card.hasAbilityMarker(ind) ? ('"' + textAsHTML(card.getAbilityInfo(ind, "cost")) + '"') : "ability #" + (ind + 1) + "'s cost") + " right now.");
           }
         }
       }
@@ -194,7 +203,6 @@ function renderRow(cards: Card[], offset: number, valids: Card[] = []) {
             }
           }
         }
-        // This will (probably) be needed, why not?
         renderBattlefield();
         renderStack();
       }, card);
@@ -287,13 +295,7 @@ function renderBattlefield() {
       let card = p.zones.graveyard[p.zones.graveyard.length - 1];
       gytt.innerHTML = card.getTooltip(textAsHTML) + `<hline></hline>Click to toggle graveyard (${p.zones.graveyard.length} cards)`;
       gytxt.textContent = card.name;
-      let bgc = card.colors.map(x => (
-        x == "white" ? "silver" :
-          x == "blue" ? "cyan" :
-            x == "black" ? "#666" :
-              x == "red" ? "firebrick" :
-                x == "green" ? "lime" : "white"
-      ));
+      let bgc = bgcolors(card);
       let bg = bgc.length == 1 ? bgc[0] : bgc.length ? "linear-gradient(" + bgc.join(", ") + ")" : "white";
       gy.style.background = bg;
     } else {
@@ -323,13 +325,7 @@ function renderBattlefield() {
       let card = p.zones.exile[p.zones.exile.length - 1];
       extt.innerHTML = card.getTooltip(textAsHTML) + `<hline></hline>Click to toggle exile pile (${p.zones.exile.length} cards)`;
       extxt.textContent = card.name;
-      let bgc = card.colors.map(x => (
-        x == "white" ? "silver" :
-          x == "blue" ? "cyan" :
-            x == "black" ? "#666" :
-              x == "red" ? "firebrick" :
-                x == "green" ? "lime" : "white"
-      ));
+      let bgc = bgcolors(card);
       let bg = bgc.length == 1 ? bgc[0] : bgc.length ? "linear-gradient(" + bgc.join(", ") + ")" : "white";
       ex.style.background = bg;
     } else {
@@ -355,13 +351,7 @@ function renderBattlefield() {
           tt.setAttribute("card_uuid", card.uuid.toString());
           tt.innerHTML = card.name.slice(0);
           tt.classList.add("tt", "card", "noabs");
-          let bgc = card.colors.map(x => (
-            x == "white" ? "silver" :
-              x == "blue" ? "cyan" :
-                x == "black" ? "#666" :
-                  x == "red" ? "firebrick" :
-                    x == "green" ? "lime" : "white"
-          ));
+          let bgc = bgcolors(card);
           let bg = bgc.length == 1 ? bgc[0] : bgc.length ? "linear-gradient(" + bgc.join(", ") + ")" : "white";
           tt.style.background = bg;
           let selected = selection.filter(x => x instanceof PermanentSelection && card instanceof PermanentCard && x.item == card.representedPermanent).length;
@@ -405,13 +395,13 @@ function renderStack() {
   for (let i of m.stack) {
     s.innerHTML += "<br/>" + (
       "effect" in i ? "Effect → " + i.permanent.name : i.card.name +
-        (i.targets.length ? i.targets.map(x => "<br/>↳ " + x.name || typeof x) : "")
+        (i.targets?.length ? i.targets.map(x => "<br/>↳ " + x.name || typeof x) : "")
     );
   }
   mouse();
 }
 
-abstract class Selection {
+export abstract class Selection {
   item: any;
   constructor(item: any) {
     this.item = item;
@@ -507,32 +497,36 @@ function selectTargets(player: Player) {
 }
 
 function submitSelection() {
-  let player = TurnManager.selectingPlayer;
-  let data = player.selectionData;
-  let things = selection.map(x => x.item);
-  if (!data || !data.validate(things)) return;
-  player.selectionData.continuation(things);
-  // Stop selecting
-  for (let c of Battlefield) {
-    c.representedCard.uiElement.classList.remove("valid");
-  }
-  for (let p of TurnManager.playerList) {
-    p.uiElement.classList.remove("valid");
-  }
-  selection = [];
-  updateSelection(player);
-  player.selectionData = undefined;
-  getId("confirm").style.display = "none";
-  getId("targetinfo").style.opacity = "0%";
-  getId("endturn").style.display = "block";
-  getId("endphase").style.display = "block";
-  getId("pass").style.display = "block";
-  renderBattlefield();
+  ApplyHooks(SubmitSelectionHook, (player, selection) => {
+    let data = player.selectionData;
+    let things = selection.map(x => x.item);
+    if (!data || !data.validate(things)) return;
+    player.selectionData.continuation(things);
+    for (let c of Battlefield) {
+      c.representedCard.uiElement.classList.remove("valid", "selected");
+    }
+    for (let p of TurnManager.playerList) {
+      p.uiElement.classList.remove("valid", "selected");
+      for (let z of Object.keys(p.zones)) {
+        for (let c of p.zones[z]) {
+          (c as Card).uiElement.classList.remove("valid", "selected");
+        }
+      }
+    }
+    selection = [];
+    player.selectionData = undefined;
+    getId("confirm").style.display = "none";
+    getId("targetinfo").style.opacity = "0%";
+    getId("endturn").style.display = "block";
+    getId("endphase").style.display = "block";
+    getId("pass").style.display = "block";
+    renderBattlefield();
+  }, TurnManager.selectingPlayer, selection);
 }
 
 let chosenOptions: number[] = [];
 
-function chooseOptions(player: Player, descriptions: string[], howMany = 1, message: string, continuation: (choices: number[]) => void) {
+function chooseOptions(player: Player, descriptions: string[], howMany: number | ((x: number) => boolean), message: string, continuation: (choices: number[]) => void) {
   getId("endturn").style.display = "none";
   getId("endphase").style.display = "none";
   getId("pass").style.display = "none";
@@ -553,7 +547,8 @@ function chooseOptions(player: Player, descriptions: string[], howMany = 1, mess
         el.classList.add("chosen");
       }
       // Check the submit button
-      if (chosenOptions.length == howMany) {
+      let good = (typeof howMany == "number" ? chosenOptions.length == howMany : howMany(chosenOptions.length));
+      if (good) {
         getId("optsubmit").classList.add("submittable");
       } else {
         getId("optsubmit").classList.remove("submittable");
@@ -562,7 +557,8 @@ function chooseOptions(player: Player, descriptions: string[], howMany = 1, mess
     getId("optlist").appendChild(el);
   }
   getId("optsubmit").onclick = function () {
-    if (chosenOptions.length != howMany) return;
+    let good = (typeof howMany == "number" ? chosenOptions.length == howMany : howMany(chosenOptions.length));
+    if (!good) return;
     getId("optcontainer").style.display = "none";
     player.choosing = false;
     continuation(chosenOptions);
@@ -591,10 +587,11 @@ function payComplexCosts(player: Player, manaPool: ManaPool, generic: number, ch
   getId("pcctopay").innerHTML = "Your Mana<br/>" + manaPool.asHTML;
   getId("pcccontainer").style.display = "block";
   let prevGen: number;
+  let getGen = () => (generic + (selectedSymbols.generic || 0) - (ManaUtils.simplePay(manaPool, selectedSymbols).remain.simplified.generic || 0));
   let updateSubmitter = function () {
     let pay = ManaUtils.simplePay(manaPool, selectedSymbols);
-    console.log("Expected " + (generic + (selectedSymbols.generic || 0) - pay.remain.simplified.generic) + " got " + genericsSelected);
-    if (pay.success && amountSelected == choices.length && genericsSelected == (generic + (selectedSymbols.generic || 0) - pay.remain.simplified.generic)) {
+    console.log("Expected " + getGen() + " got " + genericsSelected);
+    if (pay.success && amountSelected >= choices.length && genericsSelected == getGen()) {
       getId("pccsubmit").classList.add("submittable");
     } else {
       getId("pccsubmit").classList.remove("submittable");
@@ -610,7 +607,7 @@ function payComplexCosts(player: Player, manaPool: ManaPool, generic: number, ch
       prevGen = undefined;
       return;
     }
-    let gen = generic + (selectedSymbols.generic || 0) - pay.remain.simplified.generic;
+    let gen = getGen();
     if (gen <= 0 || Object.keys(pay.remain.simplified).filter(x => x != "generic").length <= 1) {
       if (Object.keys(pay.remain.simplified).filter(x => x != "generic").length == 1) {
         forGeneric = pay.remain.simplified;
@@ -630,7 +627,7 @@ function payComplexCosts(player: Player, manaPool: ManaPool, generic: number, ch
     getId("pccgeneric").innerHTML = "Pay " + gen + ":<br/>" + new ManaCost(manaPool.simplified).asHTML("clickablegen");
     for (let i of document.getElementsByClassName("clickablegen") as HTMLCollectionOf<HTMLElement>) {
       i.onclick = function () {
-        let m = JSON.parse(i.getAttribute("mana_type"));
+        let m = i.getAttribute("mana_type");
         console.log(m);
         if (i.classList.contains("selectedmana")) {
           if (forGeneric[m]) forGeneric[m]--;
@@ -663,7 +660,9 @@ function payComplexCosts(player: Player, manaPool: ManaPool, generic: number, ch
         }
       }
       // Add this to the selection
-      let mana: SimpleManaObject = JSON.parse(i.getAttribute("mana_type")); // Assuming that this works
+      let mana: SimpleManaObject = JSON.parse(i.getAttribute("mana_type") || "{}");
+      console.log("manatype...");
+      console.log(mana);
       for (let m in mana) {
         if (selectedSymbols[m]) selectedSymbols[m] += mana[m];
         else selectedSymbols[m] = mana[m];
@@ -740,7 +739,7 @@ document.onkeydown = function (e) {
   } else if (k == " ") {
     if (card && card.click) {
       card.click();
-    } else if (TurnManager.currentPlayer.zones.battlefield.length > 0) {
+    } else if (TurnManager.currentPlayer.zones.battlefield.length) {
       let c = TurnManager.currentPlayer.zones.battlefield[0];
       if (c.click) c.click();
     }

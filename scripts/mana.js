@@ -3,13 +3,13 @@ import { Cost } from "./cost.js";
 import { UI } from "./ui.js";
 export var Color;
 (function (Color) {
-    Color["generic"] = "1";
-    Color["white"] = "W";
-    Color["blue"] = "U";
-    Color["black"] = "B";
-    Color["red"] = "R";
-    Color["green"] = "G";
-    Color["colorless"] = "C";
+    Color["generic"] = "generic";
+    Color["white"] = "white";
+    Color["blue"] = "blue";
+    Color["black"] = "black";
+    Color["red"] = "red";
+    Color["green"] = "green";
+    Color["colorless"] = "colorless";
 })(Color || (Color = {}));
 export class ManaCost extends Cost {
     mana;
@@ -17,7 +17,7 @@ export class ManaCost extends Cost {
     isAbility;
     constructor(mana = {}, card, isAbility = false) {
         super();
-        this.mana = isSimple(mana) ? { required: mana } : mana;
+        this.mana = structuredClone(isSimple(mana) ? { required: mana } : mana);
         if (!this.mana.choices)
             this.mana.choices = [];
         if (!this.mana.required)
@@ -35,20 +35,19 @@ export class ManaCost extends Cost {
     }
     pay(card, spend = true) {
         this.card = card.representedCard; // Just in case it wasn't initialized with the card
-        return card.controller.manaPool.pay(this.mana, card.controller, spend);
+        return card.controller.manaPool.pay(this.card, card.controller, spend);
     }
     payPlayer(player, spend = true) {
-        return player.manaPool.pay(this.mana, player, spend);
+        return player.manaPool.pay(this.card || this.mana, player, spend);
     }
     get asString() {
-        let s = asString(this.mana.required) + this.mana.choices.map(x => "(" + x.map(y => asString(y)).join("/") + ")").join("");
-        if (!s.length)
-            s = "0";
-        return s;
+        return asString(this.mana).length ? asString(this.mana) : "0";
+    }
+    get asStringWithBraces() {
+        return asString(this.mana, true).length ? asString(this.mana, true) : "{0}";
     }
     asHTML(manaTag = "") {
-        // Be careful with JSON.stringify, sometimes it adds single quotes for some reason and we need to trash them
-        return UI.textAsHTML(Object.keys(this.mana.required).filter(x => x != 'generic').map(x => ("<span mana_type='" + JSON.stringify(x).replaceAll("'", '"') + "' class='" + manaTag + "'>{" + (x == "blue" ? "U" : x[0].toUpperCase()) + "}</span>").repeat(this.mana.required[x])).join("") + this.mana.choices.map(x => "<span>(" + x.map(y => "<span mana_type='" + JSON.stringify(y).replaceAll("'", '"') + "' class='" + manaTag + "'>" + asString(y, true) + "</span>").join("/") + ")</span>").join(""));
+        return UI.textAsHTML(asString(this.mana, true, manaTag));
     }
 }
 export class ManaPool {
@@ -123,9 +122,9 @@ export class ManaPool {
                 }
             }
         }
-        // Well that's over. If there are no valid paths then we failed.
         if (cost.choices.length && !validPaths.length)
             return false;
+        this.mana = structuredClone(savePoint.mana); // Save point!
         // Pay the ones where there is no choice
         let obvious = cost.choices.filter((x, i) => validPaths.map(y => y[i]).filter((y, j, a) => a.indexOf(y) == j).length == 1).map((x, i) => x[validPaths.map(y => y[i])[0]]);
         for (let i of obvious) {
@@ -139,9 +138,18 @@ export class ManaPool {
         // Ask for the generic mana, plus the real choices
         if (spend && (decisions.length || (cost.required.generic || 0) > 0)) {
             player.payComplexCosts(this, cost.required.generic || 0, decisions, (choices, forGeneric) => {
+                console.group("Results:");
+                console.log(this.mana);
+                console.log(choices);
                 this.mana = simplePay(this, choices).remain.mana;
+                console.log(this.mana);
+                console.log(forGeneric);
                 this.mana = simplePay(this, forGeneric).remain.mana;
+                console.log(this.mana);
+                console.log(choices.generic);
                 this.mana = simplePay(this, { generic: choices.generic }, true).remain.mana;
+                console.log(this.mana);
+                console.groupEnd();
             });
         }
         // Go back to the copied value if you don't want to save the payment
@@ -167,21 +175,35 @@ export class ManaPool {
         return UI.textAsHTML(asString(this.simplified, true));
     }
 }
+function letterToColor(letter) {
+    let l = letter[0].toLowerCase();
+    if (l == "u")
+        return Color.blue;
+    else
+        return Object.values(Color).filter(x => x != Color.generic && x[0] == l)[0];
+}
 function isSimple(mana) {
     return !("required" in mana || "choices" in mana);
 }
 function manaValueOf(mana) {
     return Object.values(mana).reduce((a, b) => a + b, 0);
 }
-function asString(mana, withBraces = false) {
+function asString(mana, withBraces = false, manaTag = "") {
+    // TODO: use manaTag in the split bits. should be a SimpleManaObject.
+    let m = (isSimple(mana) ? { required: mana } : mana);
     let order = Object.keys(Color);
-    let s = mana.generic ? mana.generic.toString() : "";
-    let keys = Object.keys(mana).filter(x => x != "generic");
+    let s = m.required.generic ? m.required.generic.toString() : "";
+    let keys = Object.keys(m.required).filter(x => x != Color.generic);
     keys.sort((a, b) => order.includes(a) ? (order.includes(b) ? (order.indexOf(a) > order.indexOf(b) ? 1 : -1) : 1) : order.includes(b) ? -1 : 0);
     for (let i of keys)
-        s += (i == "blue" ? "U" : i[0].toUpperCase()).repeat(mana[i]);
+        s += (i == Color.blue ? "U" : i[0].toUpperCase()).repeat(m.required[i]);
     if (withBraces)
-        s = s.split("").map(x => "{" + x + "}").join("");
+        s = s.split("").map(x => "ø" + letterToColor(x) + "µ{" + x + "}¬").join("");
+    if (m.choices)
+        for (let i of m.choices)
+            s += "(" + i.map(x => `ø${JSON.stringify(x)}µ${asString(x, withBraces)}¬`).filter(x => x.length).join("/") + ")";
+    s = s.replaceAll("ø", `<span class='${manaTag}' mana_type='`).replaceAll("µ", "'>").replaceAll("¬", "</span>");
+    //if (manaTag) s = `<span class='${manaTag}'>${s}</span>`;
     return s;
 }
 /**
@@ -191,7 +213,7 @@ function simplePay(mana, cost, tryPayingGeneric = false) {
     let pool = new ManaPool(mana.mana);
     let keys = Object.keys(cost);
     if (!tryPayingGeneric)
-        keys = keys.filter(x => x != "generic");
+        keys = keys.filter(x => x != Color.generic);
     for (let col of keys) {
         let payables = pool.mana.filter(x => x[col] && x[col] > 0);
         let toPay = cost[col];

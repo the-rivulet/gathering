@@ -1,12 +1,73 @@
 import { Player } from "./player.js";
-import { TurnManager, UpdateGlobals, Battlefield } from "./globals.js";
+import { TurnManager, UpdateGlobals } from "./globals.js";
 import { StackManagerClass } from "./stack.js";
 import { TurnManagerClass, Step } from "./turn.js";
-import { BasicLandCard, LlanowarElvesCard, ForcedAdaptationCard, GiantGrowthCard } from "./library.js";
+import { BasicLandCard, FigureOfDestinyCard, AnaxAndCymedeCard, FeatherTheRedeemedCard, GeneralFerrousRokiricCard, IroasGodOfVictoryCard, RadiantScrollwielderCard, ZadaHedronGrinderCard, FloweringOfTheWhiteTreeCard, LightningBoltCard, RecklessRageCard, BorosCharmCard, LightningHelixCard, IntegrityInterventionCard, RipApartCard, ThrillingDiscoveryCard, AngelfireIgnitionCard } from "./library.js";
 import { UI } from "./ui.js";
 import { Color } from "./mana.js";
-let getPlayer = () => {
-    let p = new Player("", [new BasicLandCard("Forest", Color.green), new LlanowarElvesCard(), new ForcedAdaptationCard(), new GiantGrowthCard()]);
+let getPlayer = (shuffleDeck = false) => {
+    let p = new Player("", [
+        new FigureOfDestinyCard(),
+        new FigureOfDestinyCard(),
+        new FigureOfDestinyCard(),
+        new FigureOfDestinyCard(),
+        new AnaxAndCymedeCard(),
+        new FeatherTheRedeemedCard(),
+        new FeatherTheRedeemedCard(),
+        new FeatherTheRedeemedCard(),
+        new GeneralFerrousRokiricCard(),
+        new GeneralFerrousRokiricCard(),
+        new GeneralFerrousRokiricCard(),
+        new GeneralFerrousRokiricCard(),
+        new IroasGodOfVictoryCard(),
+        new RadiantScrollwielderCard(),
+        new ZadaHedronGrinderCard(),
+        new FloweringOfTheWhiteTreeCard(),
+        new LightningBoltCard(),
+        new LightningBoltCard(),
+        new LightningBoltCard(),
+        new RecklessRageCard(),
+        new BorosCharmCard(),
+        new BorosCharmCard(),
+        new BorosCharmCard(),
+        new BorosCharmCard(),
+        new LightningHelixCard(),
+        new LightningHelixCard(),
+        new LightningHelixCard(),
+        new LightningHelixCard(),
+        new IntegrityInterventionCard(),
+        new IntegrityInterventionCard(),
+        new RipApartCard(),
+        new ThrillingDiscoveryCard(),
+        new AngelfireIgnitionCard(),
+        new AngelfireIgnitionCard(),
+        new AngelfireIgnitionCard(),
+        new AngelfireIgnitionCard(),
+        new BasicLandCard("Plains", Color.white),
+        new BasicLandCard("Plains", Color.white),
+        new BasicLandCard("Plains", Color.white),
+        new BasicLandCard("Plains", Color.white),
+        new BasicLandCard("Plains", Color.white),
+        new BasicLandCard("Plains", Color.white),
+        new BasicLandCard("Plains", Color.white),
+        new BasicLandCard("Plains", Color.white),
+        new BasicLandCard("Plains", Color.white),
+        new BasicLandCard("Plains", Color.white),
+        new BasicLandCard("Plains", Color.white),
+        new BasicLandCard("Plains", Color.white),
+        new BasicLandCard("Mountain", Color.red),
+        new BasicLandCard("Mountain", Color.red),
+        new BasicLandCard("Mountain", Color.red),
+        new BasicLandCard("Mountain", Color.red),
+        new BasicLandCard("Mountain", Color.red),
+        new BasicLandCard("Mountain", Color.red),
+        new BasicLandCard("Mountain", Color.red),
+        new BasicLandCard("Mountain", Color.red),
+        new BasicLandCard("Mountain", Color.red),
+        new BasicLandCard("Mountain", Color.red),
+        new BasicLandCard("Mountain", Color.red),
+        new BasicLandCard("Mountain", Color.red)
+    ], 20, shuffleDeck);
     p.name = "Player" + p.uuid.toString().slice(2, 5);
     return p;
 };
@@ -15,7 +76,7 @@ export function Initialize(...plist) {
     UpdateGlobals([], new TurnManagerClass(...plist), new StackManagerClass());
     // Draw some cards
     for (let i of TurnManager.playerList)
-        i.drawCard(1);
+        i.drawCard(50);
     // Set proper phase
     TurnManager.advanceIfReady();
     // Render
@@ -39,7 +100,5 @@ export function RunTests() {
     let p2 = getPlayer();
     Initialize(p1, p2);
     TurnManager.advance(Step.precombat_main);
-    p1.play(p1.zones.hand[0]);
-    Battlefield[0].abilities[0].activate(Battlefield[0]);
-    p1.play(p1.zones.hand[0]);
+    p1.landPlays = 999;
 }

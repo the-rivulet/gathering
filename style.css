@@ -48,7 +48,7 @@ html {
 }
 
 .card.tapped {
-  color: #aaa;
+  color: #666;
 }
 
 .card.tt>.tx::first-line {
@@ -159,6 +159,7 @@ hline {
   right: 10px;
   padding: 10px;
   background: rgba(0, 0, 0, 0.2);
+  user-select: none;
 }
 
 .valid {

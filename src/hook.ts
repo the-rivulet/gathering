@@ -2,10 +2,12 @@ import type { Player, SelectionData } from "./player.js";
 import type { Cost } from "./cost.js";
 import type { AuraCard, SpellCard, TypeList } from "./card.js";
 import type { Card } from "./card.js";
+import type { Selection } from "./ui.js";
 import { Permanent, Creature, Planeswalker } from "./permanent.js";
 import { TurnManagerClass, Step } from "./turn.js";
 import { Battlefield, TurnManager } from "./globals.js";
 import { Ability, ComputedAbility, ReachAbility } from "./ability.js";
+import { Zone } from "./zone.js";
 
 /**
 * `orig` should be a function that takes `that:` (whatever `this`'s type is) plus the method's parameters, and returns the method's return type.
@@ -13,7 +15,7 @@ import { Ability, ComputedAbility, ReachAbility } from "./ability.js";
 */
 export function ApplyHooks<T, U extends any[], V>(hook: new (...args: any[]) => Hook<T, U, V>, orig: (that: T, ...args: U) => V, that: T, ...args: U) {
   for (let c of Battlefield) {
-    for (let a of c.abilities) {
+    for (let a of (hook instanceof AbilitiesHook ? c.abilities : [...c.tempAbilities, ...c.eternalAbilities, ...c.baseAbilities].map(x => x instanceof ComputedAbility ? x.evaluate(c) : x).flat())) {
       if (a instanceof hook) {
         orig = a.apply(c, orig);
       }
@@ -77,10 +79,10 @@ export class ProtectionAbility extends ComputedAbility {
   constructor(applicable: (source: Card) => boolean) {
     super(card => [
       new HasValidTargetsHook((me, orig, that, field) => {
-        return orig(that, field.filter(x => x != card || !applicable(that as Card || (that as SelectionData).card)));
+        return orig(that, field.filter(x => !x.is(me) || !applicable(that as Card || (that as SelectionData).card)));
       }),
       new CheckTargetsHook((me, orig, that, field) => {
-        return orig(that, field.filter(x => x != card || !applicable(that as Card || (that as SelectionData).card)));
+        return orig(that, field.filter(x => !x.is(me) || !applicable(that as Card || (that as SelectionData).card)));
       })
     ]);
   }
@@ -157,21 +159,47 @@ export class TakeDamageHook extends Hook<Creature | Player | Planeswalker, [Card
   }
 }
 
+export class LifelinkAbility extends TakeDamageHook {
+  constructor() {
+    super((me, orig, that, source, amount, combat, destroy) => {
+      orig(that, source, amount, combat, destroy);
+      if (that instanceof Permanent && that.is(me)) that.controller.gainLife(that, amount);
+    });
+  }
+}
+
 export class CardClickHook extends Hook<Card, [], void> {
   constructor(apply: (me: Permanent, orig: (that: Card) => void, that: Card) => void) {
     super(apply);
   }
 }
 
-export class WardAbility extends CardClickHook {
+export class SubmitSelectionHook extends Hook<Player, [Selection[]], void> {
+  constructor(apply: (me: Permanent, orig: (that: Player, selection: Selection[]) => void, that: Player, selection: Selection[]) => void) {
+    super(apply);
+  }
+}
+
+export class WardAbility extends ComputedAbility {
   cost: Cost;
   constructor(cost: Cost) {
-    super((me, orig, that) => {
-      if (!TurnManager.ongoingSelection || !that.is(me.representedCard)) return orig(that);
-      if (!cost.payPlayer(TurnManager.selectingPlayer, false)) return;
-      cost.payPlayer(TurnManager.selectingPlayer, true);
-      orig(that);
-    });
+    super(card => [
+      new CardClickHook((me, orig, that) => {
+        if (!that.is(me.representedCard) || !TurnManager.ongoingSelection || !that.is(me.representedCard)) return orig(that);
+        if (!cost.payPlayer(TurnManager.selectingPlayer, false)) return;
+        orig(that);
+      }),
+      new SubmitSelectionHook((me, orig, that, selection) => {
+        if (selection.filter(x => x.item instanceof Permanent && x.item.is(me)).length) cost.payPlayer(that, true);
+        orig(that, selection);
+      })
+    ]);
     this.cost = cost;
+  }
+}
+
+export class FinishedResolvingSpellHook extends Hook<SpellCard, [Player, any[]], Zone> {
+  constructor(apply: (me: Permanent, orig: (that: SpellCard, player: Player, targets: any[]) => Zone, that: SpellCard, player: Player, targets: any[]) => Zone) {
+    super(apply);
   }
 }
