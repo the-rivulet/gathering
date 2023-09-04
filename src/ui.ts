@@ -497,23 +497,24 @@ function selectTargets(player: Player) {
 }
 
 function submitSelection() {
-  ApplyHooks(SubmitSelectionHook, (player, selection) => {
+  ApplyHooks(SubmitSelectionHook, (player, sel) => {
     let data = player.selectionData;
-    let things = selection.map(x => x.item);
+    let things = sel.map(x => x.item);
     if (!data || !data.validate(things)) return;
     player.selectionData.continuation(things);
     for (let c of Battlefield) {
-      c.representedCard.uiElement.classList.remove("valid", "selected");
+      c.representedCard.uiElement?.classList.remove("valid");
     }
+    alert("whuh");
     for (let p of TurnManager.playerList) {
-      p.uiElement.classList.remove("valid", "selected");
+      p.uiElement.classList.remove("valid");
       for (let z of Object.keys(p.zones)) {
         for (let c of p.zones[z]) {
-          (c as Card).uiElement.classList.remove("valid", "selected");
+          (c as Card).uiElement?.classList.remove("valid");
         }
       }
     }
-    selection = [];
+    selection = []; // DON'T just set `sel`, set the actual selection! `sel = []` does nothing!
     player.selectionData = undefined;
     getId("confirm").style.display = "none";
     getId("targetinfo").style.opacity = "0%";
@@ -680,9 +681,11 @@ function payComplexCosts(player: Player, manaPool: ManaPool, generic: number, ch
     player.choosing = false;
     continuation(selectedSymbols, forGeneric);
     getId("pccsubmit").classList.remove("submittable");
-    getId("endturn").style.display = "block";
-    getId("endphase").style.display = "block";
-    getId("pass").style.display = "block";
+    if (!TurnManager.ongoingSelection) {
+      getId("endturn").style.display = "block";
+      getId("endphase").style.display = "block";
+      getId("pass").style.display = "block";
+    }
     selectedSymbols = {};
     renderBattlefield();
   };
