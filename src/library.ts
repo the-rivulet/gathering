@@ -188,11 +188,11 @@ export class GeneralFerrousRokiricCard extends CreatureCard {
       new ManaCost({ red: 1, white: 1, generic: 1 }),
       [
         new ProtectionAbility(source => source.colors.length == 1),
-        new PlayCardHook((me, orig, that, card, free, noCheck, force) => {
+        new PlayCardHook((me, orig, that, card, free, auto) => {
           if (!(card.hasType("Land")) && card.colors.length >= 2) {
             new CreateTokenEffect(new CreatureCard("Golem Token", ["Creature", "Token", "Golem"], "", 4, 4)).queue(this.representedPermanent);
           }
-          return orig(that, card, free, noCheck, force);
+          return orig(that, card, free, auto);
         }),
       ]
     );

@@ -1,6 +1,6 @@
 import type { Player, SelectionData } from "./player.js";
 import type { Cost } from "./cost.js";
-import type { AuraCard, SpellCard, TypeList } from "./card.js";
+import type { AuraCard, SpellCard, SplitSpellCard, TypeList } from "./card.js";
 import type { Card } from "./card.js";
 import type { Selection } from "./ui.js";
 import { Permanent, Creature, Planeswalker } from "./permanent.js";
@@ -51,8 +51,8 @@ export class BeginStepHook extends Hook<TurnManagerClass, [], void> {
   }
 }
 
-export class PlayCardHook extends Hook<Player, [Card, boolean, boolean, any[]], boolean> {
-  constructor(apply: (me: Permanent, orig: (that: Player, card: Card, free: boolean, noCheck: boolean, force: any[]) => boolean, that: Player, card: Card, free: boolean, noCheck: boolean, force: any[]) => boolean) {
+export class PlayCardHook extends Hook<Player, [Card, boolean, boolean], boolean> {
+  constructor(apply: (me: Permanent, orig: (that: Player, card: Card, free: boolean, auto: boolean) => boolean, that: Player, card: Card, free: boolean, auto: boolean) => boolean) {
     super(apply);
   }
 }
@@ -198,8 +198,8 @@ export class WardAbility extends ComputedAbility {
   }
 }
 
-export class FinishedResolvingSpellHook extends Hook<SpellCard, [Player, any[]], Zone> {
-  constructor(apply: (me: Permanent, orig: (that: SpellCard, player: Player, targets: any[]) => Zone, that: SpellCard, player: Player, targets: any[]) => Zone) {
+export class FinishedResolvingSpellHook extends Hook<SpellCard | SplitSpellCard, [Player, any[]], Zone> {
+  constructor(apply: (me: Permanent, orig: (that: SpellCard | SplitSpellCard, player: Player, targets: any[]) => Zone, that: SpellCard | SplitSpellCard, player: Player, targets: any[]) => Zone) {
     super(apply);
   }
 }

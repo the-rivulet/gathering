@@ -1,6 +1,6 @@
 import { ManaCost } from "./mana.js";
 import { Zone } from "./zone.js";
-import { TurnManager } from "./globals.js";
+import { Battlefield, TurnManager } from "./globals.js";
 import { Step } from "./turn.js";
 import { ApplyHooks, HasValidTargetsHook, CheckTargetsHook, FinishedResolvingSpellHook } from "./hook.js";
 import { UI } from "./ui.js";
@@ -207,17 +207,36 @@ export class PlaneswalkerCard extends PermanentCard {
 export class SplitSpellCard extends Card {
     parts;
     fuse;
+    cardsToCast;
+    controller;
     constructor(fuse, ...parts) {
         if (parts.map(x => x.types.list.join(" ")).filter((x, i, a) => a.indexOf(x) == i).length > 1)
             throw new Error("Tried to create split spell card with non-matching types!");
-        super(parts.map(x => x.name).join(" // "), parts[0].types.list, parts.map(x => x.getTooltip(UI.textAsHTML)).join("<br/><br/>"), new ManaCost({ choices: parts.map(x => [x.manaCost.mana.required, ...x.manaCost.mana.choices.flat()]) }));
+        super(parts.map(x => x.name).join(" // "), parts[0].types.list, parts.map(x => x.getTooltip(UI.textAsHTML)).join("<br/><br/>"), new ManaCost());
         for (let i of parts) {
             i.partOf = this;
         }
         this.parts = parts;
         this.fuse = fuse;
     }
+    partIsCastable(part, by, auto = false, free = false) {
+        let x = this.parts[part];
+        if (!x)
+            return false;
+        return (auto || this.zone == Zone.hand) &&
+            x.manaCost &&
+            (auto || (this.owner && this.owner.is(by))) &&
+            (auto || x.hasType("Instant") || this.owner.is(TurnManager.currentPlayer)) &&
+            (auto || x.hasType("Instant") || TurnManager.step == Step.precombat_main || TurnManager.step == Step.postcombat_main) &&
+            (free || by.manaPool.pay(x, by, false)) &&
+            x.possible(x, Battlefield);
+    }
     castable(by, auto = false, free = false) {
-        return this.parts.filter(x => x.castable(by, auto, free)).length > 0;
+        return this.parts.filter((x, i) => this.partIsCastable(i, by, auto, free)).length > 0;
+    }
+    zoneWhenFinished(player, targets) {
+        return ApplyHooks(FinishedResolvingSpellHook, (that, player, targets) => {
+            return Zone.graveyard;
+        }, this, player, targets);
     }
 }

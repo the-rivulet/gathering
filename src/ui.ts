@@ -2,7 +2,7 @@ import type { Player } from "./player.js";
 import type { Creature, Permanent, Planeswalker } from "./permanent.js";
 import { ManaPool, SimpleManaObject, ManaCost, ManaUtils } from "./mana.js";
 import { ActivatedAbility, SimpleActivatedAbility, TargetedActivatedAbility } from "./ability.js";
-import { Card, AuraCard, PermanentCard, SpellCard, CreatureCard } from "./card.js";
+import { Card, AuraCard, PermanentCard, SpellCard, CreatureCard, SplitSpellCard } from "./card.js";
 import { TurnManager, Battlefield, StackManager, Settings } from "./globals.js";
 import { ApplyHooks, CardClickHook, SubmitSelectionHook } from "./hook.js";
 import { Zone } from "./zone.js";
@@ -102,6 +102,8 @@ function renderRow(cards: Card[], offset: number, valids: Card[] = []) {
       } else if (card instanceof SpellCard && !card.possible(card, Battlefield)) {
         add("This spell has no valid targets.");
         tt.classList.add("tapped");
+      } else if (card instanceof SplitSpellCard) {
+        add("Click to cast this card.");
       } else {
         add("Click to cast this card for " + card.manaCost.asHTML() + ".");
       }
@@ -501,11 +503,9 @@ function submitSelection() {
     let data = player.selectionData;
     let things = sel.map(x => x.item);
     if (!data || !data.validate(things)) return;
-    player.selectionData.continuation(things);
     for (let c of Battlefield) {
       c.representedCard.uiElement?.classList.remove("valid");
     }
-    alert("whuh");
     for (let p of TurnManager.playerList) {
       p.uiElement.classList.remove("valid");
       for (let z of Object.keys(p.zones)) {
@@ -514,13 +514,15 @@ function submitSelection() {
         }
       }
     }
-    selection = []; // DON'T just set `sel`, set the actual selection! `sel = []` does nothing!
-    player.selectionData = undefined;
     getId("confirm").style.display = "none";
     getId("targetinfo").style.opacity = "0%";
     getId("endturn").style.display = "block";
     getId("endphase").style.display = "block";
     getId("pass").style.display = "block";
+    player.selectionData.continuation(things);
+    alert("Finished continuation.");
+    selection = []; // DON'T just set `sel`, set the actual selection!
+    player.selectionData = undefined;
     renderBattlefield();
   }, TurnManager.selectingPlayer, selection);
 }
@@ -562,11 +564,11 @@ function chooseOptions(player: Player, descriptions: string[], howMany: number |
     if (!good) return;
     getId("optcontainer").style.display = "none";
     player.choosing = false;
-    continuation(chosenOptions);
     getId("optsubmit").classList.remove("submittable");
     getId("endturn").style.display = "block";
     getId("endphase").style.display = "block";
     getId("pass").style.display = "block";
+    continuation(chosenOptions);
     chosenOptions = [];
     renderBattlefield();
   };
@@ -679,13 +681,13 @@ function payComplexCosts(player: Player, manaPool: ManaPool, generic: number, ch
     if (!getId("pccsubmit").classList.contains("submittable")) return;
     getId("pcccontainer").style.display = "none";
     player.choosing = false;
-    continuation(selectedSymbols, forGeneric);
     getId("pccsubmit").classList.remove("submittable");
     if (!TurnManager.ongoingSelection) {
       getId("endturn").style.display = "block";
       getId("endphase").style.display = "block";
       getId("pass").style.display = "block";
     }
+    continuation(selectedSymbols, forGeneric);
     selectedSymbols = {};
     renderBattlefield();
   };

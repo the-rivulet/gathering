@@ -24,9 +24,12 @@ export class StackManagerClass {
     this.stack.push(what);
   }
   async resolveNext() {
+    alert("resolving next?");
     let next = this.stack.pop();
     if (!next) return;
     if (isCard(next)) {
+      alert("REASOLVING");
+      alert("Resolving a card! targets=" + JSON.stringify(next.targets));
       if (next.card.owner) next.card.owner.resolve(next.card, next.targets);
     } else next.effect.resolve(next.permanent);
   }

@@ -13,7 +13,7 @@ export class SelectionData {
   baseValidate: (t: any[]) => boolean;
   basePossible: (field: Permanent[]) => boolean;
   message: string;
-  continuation: (result: any) => any;
+  continuation: (result: any[]) => any;
   limitOne: boolean;
   constructor(card: Card, validate: (t: any[]) => boolean, possible: (field: Permanent[]) => boolean, message: string, continuation: (result: any) => any, limitOne = false) {
     this.card = card;
@@ -136,7 +136,7 @@ export class Player {
     UI.renderStack();
     return true;
   }
-  castSpell(card: SpellCard, forceTargets?: any[], free = false, auto = false) {
+  castSpell(card: SpellCard, free = false, auto = false) {
     if (!card.castable(this, auto, free) || !card.possible(card, Battlefield)) return false;
     let doIt = (targets: any[]) => {
       if (!card.validate(card, targets)) {
@@ -151,13 +151,10 @@ export class Player {
     };
     if (!free) this.manaPool.pay(card, this);
     this.moveCardTo(card, (card.partOf ? Zone.limbo : Zone.stack));
-    if (forceTargets) return doIt(forceTargets);
-    else {
-      this.selectTargets(card, t => card.validate(card, t), () => card.possible(card, Battlefield), "Select the spell's targets", doIt);
-      return true;
-    }
+    this.selectTargets(card, t => card.validate(card, t), () => card.possible(card, Battlefield), "Select the spell's targets", doIt);
+    return true;
   }
-  castAura(card: AuraCard, forceTarget?: Permanent | Player, free = false, auto = false) {
+  castAura(card: AuraCard, free = false, auto = false) {
     if (!card.castable(this, auto, free) || !card.possible(card, Battlefield)) return false;
     let doIt = (target: Permanent | Player) => {
       if (!card.validate(card, target)) {
@@ -171,45 +168,59 @@ export class Player {
     };
     if (!free) this.manaPool.pay(card, this);
     this.moveCardTo(card, Zone.stack);
-    if (forceTarget) return doIt(forceTarget);
-    else {
-      this.selectSingleTarget(card, t => card.validate(card, t), () => card.possible(card, Battlefield), "Select the aura's targets", doIt);
-      return true;
-    }
+    this.selectSingleTarget(card, t => card.validate(card, t), () => card.possible(card, Battlefield), "Select the aura's targets", doIt);
+    return true;
   }
-  castSplitSpell(card: SplitSpellCard, forceModes?: number[] | number, free = false, auto = false) {
+  castSplitSpell(card: SplitSpellCard, free = false, auto = false) {
     if (!card.castable(this, auto, free)) return false;
-    let fm = (typeof forceModes == "number" ? [forceModes] : forceModes);
-    let wm = card.parts.filter(x => x.castable(this, auto, free) && x.possible(x, Battlefield));
-    if (fm && fm.filter(x => !wm.includes(card.parts[x])).length) return false;
+    let wm = card.parts.filter((x, i) => card.partIsCastable(i, this, auto, free));
+    if (!wm.length) return false;
     let doIt = (modes: number[]) => {
       let cards = modes.map(x => card.parts[x]);
-      if (cards.filter(x => !x.castable(this, auto, free) || !x.possible(x, Battlefield)).length) return false;
-      this.moveCardTo(card, Zone.limbo);
-      for (let i of cards) {
-        this.createNewCard(i);
-        this.play(i);
-      }
-      this.moveCardTo(card, Zone.stack);
+      if (cards.filter((x, i) => !(card.partIsCastable(i, this, auto, free) && x.possible(x, Battlefield))).length) return false;
+      card.cardsToCast = modes;
+      let targets: any[][] = [];
+      let select = function (i: number, pl: Player) {
+        let c = cards[i];
+        alert("Paying mana: " + c.manaCost.asString);
+        if (!free) pl.manaPool.pay(c, pl);
+        pl.selectTargets(undefined, t => c.validate(c, t), () => c.possible(c, Battlefield), "Select targets for mode: " + c.name, function (result) {
+          if (i + 1 == modes.length) {
+            alert("Selected targets for all modes.");
+            // Add it to the targets list
+            targets.push(result);
+            // That was the last card, now play it for real
+            StackManager.add({ card: card, targets: targets });
+            pl.moveCardTo(card, Zone.stack);
+            UI.renderStack();
+          } else {
+            alert("Finished selection for card " + (i + 1) + " / " + modes.length);
+            // Add it to the targets list
+            targets.push(result);
+            // Continue the selection
+            select(i + 1, pl);
+          }
+        });
+      };
+      select(0, this);
       return true;
     };
-    if (fm) return doIt(fm);
-    else {
-      this.chooseOptions(card.parts.map(x => x.name), (card.fuse ? x => x >= 1 : 1), "Choose a part to cast", doIt);
-      return true;
-    }
+    this.chooseOptions(card.parts.filter(x => wm.includes(x)).map(x => x.name), (card.fuse ? x => x >= 1 : 1), "Choose a part to cast", doIt);
+    return true;
   }
-  play(card: Card, free = false, noCheck = false, forceTargets?: any[]) {
-    ApplyHooks(PlayCardHook, (that, card, free, noCheck, forceTargets) => {
-      if (card.hasType("Land") && card instanceof PermanentCard) return that.playLand(card, free, noCheck);
+  play(card: Card, free = false, auto = false) {
+    ApplyHooks(PlayCardHook, (that, card, free, auto) => {
+      if (card.hasType("Land") && card instanceof PermanentCard) return that.playLand(card, free, auto);
       else if (card instanceof AuraCard)
-        return that.castAura(card, forceTargets ? forceTargets[0] : undefined, free, noCheck);
+        return that.castAura(card, free, auto);
       else if (card instanceof PermanentCard)
-        return that.castPermanent(card, free, noCheck);
+        return that.castPermanent(card, free, auto);
+      else if (card instanceof SplitSpellCard)
+        return that.castSplitSpell(card, free, auto);
       else if (card instanceof SpellCard)
-        return that.castSpell(card, forceTargets, free, noCheck);
+        return that.castSpell(card, free, auto);
       return false;
-    }, this, card, free, noCheck, forceTargets);
+    }, this, card, free, auto);
   }
   createToken(card: PermanentCard) {
     // Cannot just create the card on the battlefield, it needs to trigger move effects
@@ -218,6 +229,7 @@ export class Player {
   }
   resolve(card: Card, targets: any[] = []) {
     ApplyHooks(ResolveCardHook, (that, card, targets) => {
+      alert("Card is resolving");
       if (card instanceof AuraCard) {
         if (targets.length == 1 && card.validate(card, targets[0])) {
           card.attached = targets[0]; that.moveCardTo(card, Zone.battlefield);
@@ -226,13 +238,20 @@ export class Player {
         }
       }
       else if (card instanceof PermanentCard) { that.moveCardTo(card, Zone.battlefield); }
+      else if (card instanceof SplitSpellCard) {
+        alert("SSC is resolving with CTC=" + card.cardsToCast);
+        for (let i of card.cardsToCast) {
+          alert(card.parts[i].name);
+          // TODO: Why did this do "undefined"?
+          alert("Resolving mode #" + i + " (" + card.parts[i].name + ") with targets " + targets[i].map(x => x instanceof Card ? x.name : x));
+          card.parts[i].resolve(card.parts[i], targets[i]);
+          alert("Done.");
+        }
+        that.moveCardTo(card, card.zoneWhenFinished(that, targets.flat()));
+      }
       else if (card instanceof SpellCard) {
         card.resolve(card, targets);
-        let zwf = card.zoneWhenFinished(that, targets);
-        if (card.partOf) {
-          that.moveCardTo(card.partOf, zwf);
-          card.destroy();
-        } else that.moveCardTo(card, zwf);
+        that.moveCardTo(card, card.zoneWhenFinished(that, targets));
       }
     }, this, card, targets);
   }

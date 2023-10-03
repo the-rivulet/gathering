@@ -3,6 +3,7 @@ import type { Player } from "./player.js";
 import { Card } from "./card.js";
 import { Cost } from "./cost.js";
 import { UI } from "./ui.js";
+import { couldStartTrivia } from "../node_modules/typescript/lib/typescript.js";
 
 export enum Color {
   generic = "generic",
@@ -163,8 +164,15 @@ export class ManaPool {
         console.groupEnd();
       });
     }
-    // Go back to the copied value if you don't want to save the payment
-    if (!spend) this.mana = copy.mana;
+    if (!spend) {
+      // Just because you aren't spending, doesn't mean you can ignore generics
+      if ((cost.required.generic || 0) > this.value) {
+        this.mana = copy.mana;
+        return false;
+      }
+      // Go back to the copied value if you don't want to save the payment
+      this.mana = copy.mana;
+    }
     return true;
   }
   add(other: ManaPoolPart | ManaPoolPart[] | ManaPool) {
@@ -197,7 +205,6 @@ function manaValueOf(mana: SimpleManaObject): number {
   return Object.values(mana).reduce((a, b) => a + b, 0);
 }
 function asString(mana: SimpleManaObject | ManaObject, withBraces = false, manaTag = "") {
-  // TODO: use manaTag in the split bits. should be a SimpleManaObject.
   let m = (isSimple(mana) ? { required: mana } : mana);
   let order = Object.keys(Color);
   let s: string = m.required.generic ? m.required.generic.toString() : "";
